@@ -16,6 +16,13 @@ HidApi::~HidApi()
 }
 
 namespace {
+
+  union BitShift
+  {
+    uint8_t c[4];
+    uint32_t i;
+  };
+
   struct debug
   {
     template<typename T>
@@ -45,11 +52,14 @@ namespace {
     inline Screen& invert() {
       modified = true; return Screen::invert();
     }
+    inline Screen& shift(Direction dir) {
+      modified = true; return Screen::shift(dir);
+    }
     inline Screen& setBrightness(Brightness brightness) {
       modified = true; return Screen::setBrightness(brightness);
     }
-    inline void set(uint8_t x, uint8_t y, bool on) {
-      modified = true; Screen::set(x,y,on);
+    inline Screen& set(uint8_t x, uint8_t y, bool on) {
+      modified = true; return Screen::set(x,y,on);
     }
 
     std::atomic<bool> modified;
@@ -106,15 +116,16 @@ bool dcled::Screen::get(uint8_t x, uint8_t y) const
   return false;
 }
 
-void dcled::Screen::set(uint8_t x, uint8_t y, bool on)
+dcled::Screen& dcled::Screen::set(uint8_t x, uint8_t y, bool on)
 {
   if (!(y < HEIGHT && x < WIDTH))
-    return;
+    return *this;
 
   if (on)
     msgs_[y/2].data[y%2][2-x/8] &= ~(1 << x%8);
   else
     msgs_[y/2].data[y%2][2-x/8] |= (1 << x%8);
+  return *this;
 }
 
 dcled::Screen& dcled::Screen::operator|(const Screen& other)
@@ -141,6 +152,62 @@ dcled::Screen& dcled::Screen::operator^(const Screen& other)
   msgs_[1] ^= other.msgs_[1];
   msgs_[2] ^= other.msgs_[2];
   msgs_[3] ^= other.msgs_[3];
+  return *this;
+}
+
+dcled::Screen& dcled::Screen::shift(Direction dir)
+{
+  switch(dir) {
+  case Direction::Up:
+    for (int i=0; i<4; ++i) {
+      msgs_[i].data[0][0] = msgs_[i].data[1][0];
+      msgs_[i].data[0][1] = msgs_[i].data[1][1];
+      msgs_[i].data[0][2] = msgs_[i].data[1][2];
+      if (i<3) {
+        msgs_[i].data[1][0] = msgs_[i+1].data[0][0];
+        msgs_[i].data[1][1] = msgs_[i+1].data[0][1];
+        msgs_[i].data[1][2] = msgs_[i+1].data[0][2];
+      }
+    }
+    msgs_[3].data[0][0] = msgs_[3].data[0][1] = msgs_[3].data[0][2] = 0xFF;
+    break;
+  case Direction::Down:
+    for (int i=3; i>=0; --i) {
+      msgs_[i].data[1][0] = msgs_[i].data[0][0];
+      msgs_[i].data[1][1] = msgs_[i].data[0][1];
+      msgs_[i].data[1][2] = msgs_[i].data[0][2];
+      if (i>0) {
+        msgs_[i].data[0][0] = msgs_[i-1].data[1][0];
+        msgs_[i].data[0][1] = msgs_[i-1].data[1][1];
+        msgs_[i].data[0][2] = msgs_[i-1].data[1][2];
+      }
+    }
+    msgs_[0].data[0][0] = msgs_[0].data[0][1] = msgs_[0].data[0][2] = 0xFF;
+    break;
+  case Direction::Left:
+    for (int i=0; i<4; ++i) {
+      for (int j=0; j<2; ++j) {
+        msgs_[i].data[j][0] |= (5<<5);
+        BitShift t{ { msgs_[i].data[j][2], msgs_[i].data[j][1], msgs_[i].data[j][0], 0xFF} };
+        t.i >>= 1;
+        msgs_[i].data[j][2] = t.c[0];
+        msgs_[i].data[j][1] = t.c[1];
+        msgs_[i].data[j][0] = t.c[2];
+      }
+    }
+    break;
+  case Direction::Right:
+    for (int i=0; i<4; ++i) {
+      for (int j=0; j<2; ++j) {
+        BitShift t{ {0xFF, msgs_[i].data[j][2], msgs_[i].data[j][1], msgs_[i].data[j][0]} };
+        t.i <<= 1;
+        msgs_[i].data[j][2] = t.c[1];
+        msgs_[i].data[j][1] = t.c[2];
+        msgs_[i].data[j][0] = t.c[3];
+      }
+    }
+    break;
+  }
   return *this;
 }
 
