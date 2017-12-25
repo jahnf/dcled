@@ -1,5 +1,5 @@
-#ifndef SCREEN_H
-#define SCREEN_H
+#ifndef DCLED_SCREEN_H
+#define DCLED_SCREEN_H
 
 #include <vector>
 #include <list>
@@ -25,19 +25,16 @@ namespace dcled
     Screen& operator=(const Screen& other) = default;
     Screen& operator=(Screen&& other) = default;
 
-    virtual Screen& operator&(const Screen& other);
-    virtual Screen& operator|(const Screen& other);
-    virtual Screen& operator^(const Screen& other);
+    Screen& operator&(const Screen& other);
+    Screen& operator|(const Screen& other);
+    Screen& operator^(const Screen& other);
 
-    virtual Screen& invert();
-    virtual Screen& shift(Direction dir);
-    virtual Screen& setBrightness(Brightness brightness);
-    virtual Screen& setAll(bool on);
-
-    /// Set the LED state at \a x, \a y. This sets the internal data, but does not send
-    /// it to the actual device. This is done either via \a draw() or done automatically
-    /// in intervals by the display update thread if activated.
-    virtual Screen& set(uint8_t x, uint8_t y, bool on);
+    Screen& invert();
+    Screen& shift(Direction dir);
+    Screen& setBrightness(Brightness brightness);
+    Screen& setAll(bool on);
+    Screen& setRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool on);
+    Screen& set(uint8_t x, uint8_t y, bool on);
 
     /// Get the LED state at \a x, \a y.
     bool get(uint8_t x, uint8_t y) const;
@@ -61,4 +58,4 @@ namespace dcled
     LedMsg msgs_[4];
   };
 } // end namespace dcled
-#endif // SCREEN_H
+#endif // DCLED_SCREEN_H

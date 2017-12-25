@@ -9,6 +9,7 @@
 #include <args/args.hxx>
 #include <hidapi/hidapi.h>
 
+#include "animations.h"
 #include "device.h"
 #include "screen.h"
 
@@ -40,12 +41,10 @@ int main(int argc, char* argv[])
 {
   args::ArgumentParser parser("Dream Cheeky LED Message Board driver.", "");
   args::HelpFlag helpArg(parser, "help", "Display this help menu", {'h', "help"});
-  //args::Group xorGroup(parser, "", args::Group::Validators::Xor);
   args::Flag listArg(parser, "list", "List all dcled devices", {'l', "list"});
   args::Flag stdoutArg(parser, "stdout", "Print device screen to stdout", {'s', "stdout"});
   args::Flag norealdevArg(parser, "norealdevice", "Do not search/use real device\n"
                         "(includes --stdout)", {'n', "norealdev"});
-//    args::Flag listArg2(parser, "list2", "List all dcled devices", {'t', "test"});
   args::ValueFlag<std::string> pathArg(parser, "path", "USB device path", {'p', "path"});
   try
   {
@@ -99,27 +98,9 @@ int main(int argc, char* argv[])
   dcled::ExitAnimation2 e2;
 
   dev.enqueue(std::make_unique<dcled::ExitAnimation>());
-  dev.enqueue(std::make_unique<dcled::ExitAnimation2>());
-//  std::cout << (double) std::chrono::high_resolution_clock::period::num
-//               / std::chrono::high_resolution_clock::period::den << std::endl;;
-
-
+//s  dev.enqueue(std::make_unique<dcled::ExitAnimation2>());
+  dev.enqueue(std::make_unique<dcled::FontAnimation1>());
   dev.playAll();
-
-//  dev.screen().setAll(true);
-//  dev.update();
-//  std::this_thread::sleep_for(std::chrono::milliseconds(250));
-//  dev.update();
-//  std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
-//  dev.screen().setBrightness(dcled::Screen::Brightness::Mid);
-//  dev.update();
-//  std::this_thread::sleep_for(std::chrono::milliseconds(250));
-//  dev.update();
-//  std::this_thread::sleep_for(std::chrono::milliseconds(250));
-//  dev.update();
-//  std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
   return 0;
 }
 

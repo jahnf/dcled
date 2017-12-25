@@ -18,7 +18,9 @@ endif()
 add_subdirectory(hidapi)
 
 add_library(dcledlib STATIC EXCLUDE_FROM_ALL
+  animations.cc animations.h
   device.cc device.h
+  font.cc font.h
   pixmap.cc pixmap.h
   screen.cc screen.h
   dcled-main.cc

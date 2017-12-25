@@ -16,45 +16,8 @@ private:
 
 namespace dcled
 {
+  class Animation;
   class Screen;
-
-  class Animation
-  {
-  public:
-    virtual ~Animation() = default;
-    //virtual bool update(Screen& screen, uint32_t timePassed) = 0;
-    //virtual bool next(Screen& screen) = 0;
-    /// Updates the screen with the next animation step if the end is not reached and return
-    /// the time in ms that the updated screen should be shown. Returns 0 if the end of the
-    /// animation was reached.
-    virtual uint32_t step(Screen&) { return 0; }
-    /// Resets the animation to the beginning.
-    virtual void reset() = 0;
-    virtual int get() = 0;
-  };
-
-  class ExitAnimation : public Animation
-  {
-  public:
-    virtual ~ExitAnimation() = default;
-    virtual uint32_t step(Screen&) override;
-    virtual void reset() override { counter = 10; }
-    virtual int get() override { return 32; }
-  private:
-    int counter = 10;
-  };
-
-  class ExitAnimation2 : public Animation
-  {
-  public:
-    virtual ~ExitAnimation2() = default;
-    virtual uint32_t step(Screen&) override;
-    virtual void reset() override { counter= 0;}
-    virtual int get() override { return 64; }
-  private:
-    int counter = 0;
-  };
-
 
   struct DeviceInfo {
     const uint16_t vendor_id = 0;
@@ -89,19 +52,15 @@ namespace dcled
 
     /// Returns if the usb device was successfully opened.
     bool isOpen() const;
-    /// Send the screen to the device.
+
+    /// Send the current screen to the device manually.
     void update();
 
+    /// Add an animation to the queue.
     void enqueue(std::unique_ptr<Animation>&& a);
 
+    /// Play all animations in the queue.
     void playAll();
-
-    /// Unfortunately the DC LED Message Board only lights up the LED's for about 300ms after
-    /// sending it to the device - to be able to constantly diplay something you would have to
-    /// update the device screen at least every 300ms - the updater thread does this for you.
-    void startUpdateThread();
-    void stopUpdateThread();
-    bool updateThreadRunning();
 
   private:
     struct Impl;
