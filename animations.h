@@ -1,9 +1,7 @@
 #ifndef DCLED_ANIMATIONS_H
 #define DCLED_ANIMATIONS_H
 
-//#include <cstdint>
-
-#include "font.h"
+#include <string>
 
 namespace dcled {
 
@@ -40,16 +38,16 @@ namespace dcled {
     int counter_ = 0;
   };
 
-  class Font;
+  namespace font{ struct Font; }
   class FontAnimation1 : public Animation
   {
   public:
-    FontAnimation1(const std::string& text);
+    FontAnimation1();
     virtual ~FontAnimation1() = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override;
   private:
-    Font f_;
+    const font::Font& font_;
     std::string text_;
     int counter_ = 0;
   };

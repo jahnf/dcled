@@ -39,7 +39,7 @@ namespace dcled
     /// Get the LED state at \a x, \a y.
     bool get(uint8_t x, uint8_t y) const;
 
-    static void dump(const Screen& s, bool ttyColored = false);
+    void print(bool ttyColored = false) const;
 
   protected:
     struct LedMsg

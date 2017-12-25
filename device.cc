@@ -125,7 +125,7 @@ struct dcled::Device::Impl
     }
     if (to_stdout) {
       terminalPosReset();
-      Screen::dump(screen, stdout_is_tty);
+      screen.print(stdout_is_tty);
     }
   }
 

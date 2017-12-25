@@ -10,15 +10,15 @@ namespace {
   };
 }
 
-void dcled::Screen::dump(const Screen& s, bool ttyColored)
+void dcled::Screen::print(bool ttyColored) const
 {
   for (uint8_t y = 0; y < Screen::HEIGHT; ++y) {
     std::cout << "|";
     for (uint8_t x = 0; x < Screen::WIDTH; ++x) {
       if (ttyColored)
-        std::cout << (s.get(x,y) ? "\x1b[1;37;41m*\033[0m" : "\x1b[90;40m.\033[0m" );
+        std::cout << (get(x,y) ? "\x1b[1;37;41m*\033[0m" : "\x1b[90;40m.\033[0m" );
       else
-        std::cout << (s.get(x,y) ? "*" : "." );
+        std::cout << (get(x,y) ? "*" : "." );
     }
     std::cout << '|' << std::endl;
   }
