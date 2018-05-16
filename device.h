@@ -28,6 +28,8 @@ namespace dcled
     const std::string product;
   };
 
+  void stopThreads(int s = 2);
+
   class Device
   {
   public:
@@ -56,16 +58,39 @@ namespace dcled
     /// Send the current screen to the device manually.
     void update();
 
-    /// Add an animation to the queue.
-    void enqueue(std::unique_ptr<Animation>&& a);
+    template<typename AnimType> void enqueue(const AnimType& a) {
+      static_assert(std::is_base_of<Animation, AnimType>::value,
+                    "AnimType must derive from Animation");
+      enqueue_ptr(std::make_unique<AnimType>(a));
+    }
+
+    template<typename AnimType> void enqueue(const AnimType&& a) {
+      static_assert(std::is_base_of<Animation, AnimType>::value,
+                    "AnimType must derive from Animation");
+      enqueue(std::make_unique<AnimType>(std::move(a)));
+    }
+
+    template<typename AnimType> void enqueue(AnimType* a) {
+      static_assert(std::is_base_of<Animation, AnimType>::value,
+                    "AnimType must derive from Animation");
+      enqueue(std::unique_ptr<AnimType>(a));
+    }
+
+    template<typename AnimType> void enqueue(std::unique_ptr<AnimType> a) {
+      static_assert(std::is_base_of<Animation, AnimType>::value,
+                    "AnimType must derive from Animation");
+      enqueue_ptr(std::move(a));
+    }
 
     /// Play all animations in the queue.
     void playAll();
 
   private:
+    void enqueue_ptr(std::unique_ptr<Animation> a);
     struct Impl;
     std::unique_ptr<Impl> p_;
   };
+
 } // end namespace dcled
 
 #endif // DEVICE_H

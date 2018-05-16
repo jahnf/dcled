@@ -74,6 +74,11 @@ dcled::Screen& dcled::Screen::set(uint8_t x, uint8_t y, bool on)
   return *this;
 }
 
+dcled::Screen& dcled::Screen::set(const Screen& other)
+{
+  return (*this = other);
+}
+
 dcled::Screen& dcled::Screen::setRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool on)
 {
   if (!(y < HEIGHT && x < WIDTH))

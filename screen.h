@@ -35,6 +35,7 @@ namespace dcled
     Screen& setAll(bool on);
     Screen& setRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool on);
     Screen& set(uint8_t x, uint8_t y, bool on);
+    Screen& set(const Screen& other);
 
     /// Get the LED state at \a x, \a y.
     bool get(uint8_t x, uint8_t y) const;

@@ -1,4 +1,4 @@
-#include "device.h"
+  #include "device.h"
 
 #include "animations.h"
 #include "screen.h"
@@ -9,6 +9,7 @@
 #include <iostream>
 #include <locale>
 #include <thread>
+#include <utility>
 #include <hidapi/hidapi.h>
 
 // Linux only, TODO Windows alternative for isatty...
@@ -46,15 +47,21 @@ namespace {
     inline const auto& msgs() const { return msgs_; }
   };
 
+  std::atomic<bool> threadStop(false);
 } // end anonymous namespace
 
 
 constexpr char dcled::Device::EMULATED_DEV_PATH[];
 
+void dcled::stopThreads(int /*s*/)
+{
+  ::threadStop = true;
+}
+
 struct dcled::Device::Impl
 {
   Impl(bool toStdout = false)
-    : handle(hid_open(VENDOR_ID, PRODUCT_ID, NULL)), threadStopSignal(false),
+    : handle(hid_open(VENDOR_ID, PRODUCT_ID, NULL)),
       to_stdout(toStdout), stdout_is_tty(stdoutIsTty())
   {
     if (this->to_stdout && stdout_is_tty) {
@@ -63,7 +70,7 @@ struct dcled::Device::Impl
   }
 
   Impl(const std::string usb_path, bool toStdout = false)
-    : threadStopSignal(false), to_stdout(toStdout), stdout_is_tty(stdoutIsTty())
+    : to_stdout(toStdout), stdout_is_tty(stdoutIsTty())
   {
     if (usb_path.compare( EMULATED_DEV_PATH ) != 0) {
       handle = hid_open_path(usb_path.c_str());
@@ -94,11 +101,11 @@ struct dcled::Device::Impl
   {
     //debug() << "started animation thread " << std::this_thread::get_id();
     std::unique_ptr<Animation> a;
-    while (!threadStopSignal && animations.try_dequeue(a))
+    while (!::threadStop && animations.try_dequeue(a))
     {
       while( uint32_t animDurationMs = a->step(screen) ) {
         auto timeUntil = std::chrono::high_resolution_clock::now();
-        while (!threadStopSignal && ( animDurationMs > 0 ))
+        while (!::threadStop && ( animDurationMs > 0 ))
         {
           screenToDevice();
           timeUntil += std::chrono::milliseconds(sleepDuration(animDurationMs));
@@ -132,7 +139,6 @@ struct dcled::Device::Impl
   hid_device* handle = nullptr;
   InternalScreen screen;
   moodycamel::ConcurrentQueue<std::unique_ptr<Animation>> animations;
-  std::atomic<bool> threadStopSignal;
   bool to_stdout = false;
   bool stdout_is_tty = false;
   bool emulated_only = false;
@@ -155,6 +161,7 @@ dcled::Device::Device(Device&& other)
 
 dcled::Device::~Device()
 {
+  debug() << "~Device()";
 }
 
 const std::list<dcled::DeviceInfo> dcled::Device::list()
@@ -195,10 +202,11 @@ void dcled::Device::update()
   p_->screenToDevice();
 }
 
-void dcled::Device::enqueue(std::unique_ptr<Animation>&& a)
+void dcled::Device::enqueue_ptr(std::unique_ptr<Animation> a)
 {
   if(a) p_->animations.enqueue(std::move(a));
 }
+
 
 void dcled::Device::playAll()
 {

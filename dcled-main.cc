@@ -1,10 +1,7 @@
-#include <chrono>
 #include <iostream>
-#include <thread>
-#include <atomic>
+#include <tuple>
 
 #include <signal.h>
-#include <unistd.h>
 
 #include <args/args.hxx>
 #include <hidapi/hidapi.h>
@@ -27,25 +24,54 @@ namespace {
     ~error() { std::cerr << std::endl; }
   };
 
-  std::atomic<bool> sigInt(false);
-}
+  void sighandler(int s)
+  {
+    dcled::stopThreads(s);
+  }
 
-void sighandler(int s)
-{
-  sigInt = true;
-}
+  struct AnimationReader {
+    void operator()(const std::string &name, const std::string &value, std::string &errormsg)
+    {
+      error() << name << " .. " << value;
+      // TODO parse value, add to local global list if valid
+      // otherwise set errormsg.
+    }
+  };
 
-int listDevices(bool emulate = false);
+  int listDevices(bool emulate)
+  {
+    auto devices = emulate ? std::list<dcled::DeviceInfo>{{0, 0, dcled::Device::EMULATED_DEV_PATH,
+                                                           "#0", "Emulator", "stdout"}}
+                           : dcled::Device::list();
+    for( const auto& dev : devices ) {
+      print() << " * " << "Device:       " << std::hex << dev.vendor_id << " "
+                                                       << dev.product_id << std::dec;
+      print() << "   " << "Path:         " << dev.path;
+      print() << "   " << "Manufacturer: " << dev.manufacturer;
+      print() << "   " << "Product:      " << dev.product << std::endl;
+    }
+
+    print() << "*** Found " << devices.size()
+            << (devices.size() == 1 ? " device." : " devices.") << std::endl;
+
+    return static_cast<int>(devices.size());
+  }
+}
 
 int main(int argc, char* argv[])
 {
-  args::ArgumentParser parser("Dream Cheeky LED Message Board driver.", "");
-  args::HelpFlag helpArg(parser, "help", "Display this help menu", {'h', "help"});
-  args::Flag listArg(parser, "list", "List all dcled devices", {'l', "list"});
-  args::Flag stdoutArg(parser, "stdout", "Print device screen to stdout", {'s', "stdout"});
-  args::Flag norealdevArg(parser, "norealdevice", "Do not search/use real device\n"
-                        "(includes --stdout)", {'n', "norealdev"});
+  args::ArgumentParser parser("Dream Cheeky LED Message Board driver.");
+  args::HelpFlag help_arg(parser, "help", "Display this help menu", {'h', "help"});
+  args::Flag list_arg(parser, "list", "List all dcled devices", {'l', "list"});
   args::ValueFlag<std::string> pathArg(parser, "path", "USB device path", {'p', "path"});
+  args::Flag stdout_arg(parser, "stdout", "Print device screen to stdout", {'s', "stdout"});
+  args::Flag virtual_dev_arg(parser, "virtual", "Use only virtual stdout device\n"
+                        "(includes --stdout)", {'v', "virtual"});
+
+  args::Base emptyLine(""); parser.Add( emptyLine );
+  args::PositionalList<std::string, std::list, AnimationReader>
+          anims(parser, "ANIMATION", "Animations....");
+
   try
   {
     parser.ParseCLI(argc, argv);
@@ -68,17 +94,25 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  if (!norealdevArg && !HidApi::init()) {
+  if (!virtual_dev_arg && !HidApi::init()) {
     error() << "Error: hid_init() failed.";
     return 1;
   }
 
-  if (listArg) {
-    listDevices(norealdevArg);
+  if (list_arg) {
+    listDevices(virtual_dev_arg);
     return 0;
   }
 
-  if (!norealdevArg)
+//  if (anims) {
+//    for(const auto& t: anims.Get()) {
+//      error() << "anim: " << t.a << " " << t.b;
+//    }
+//    return 0;
+//  }
+
+
+  if (!virtual_dev_arg)
   {
     if (!dcled::Device::list().size()) {
       error() << "No DC LED Message Board found.";
@@ -86,36 +120,44 @@ int main(int argc, char* argv[])
     }
   }
 
-  dcled::Device dev(norealdevArg ? dcled::Device(std::string(dcled::Device::EMULATED_DEV_PATH))
-                                 : pathArg ? dcled::Device(pathArg.Get(), stdoutArg)
-                                           : dcled::Device(stdoutArg));
+  #ifdef _WIN32
+    signal(SIGABRT, &sighandler);
+    signal(SIGTERM, &sighandler);
+    signal(SIGINT,  &sighandler);
+  #else
+  {
+    struct sigaction action;
+    sigemptyset( &action.sa_mask );
+    action.sa_handler = sighandler;
+    action.sa_flags = 0;
+    if( sigaction( SIGABRT, &action, NULL ) < 0 ) /*signal install error*/ (void)NULL;
+    if( sigaction( SIGTERM, &action, NULL ) < 0 ) /*signal install error*/ (void)NULL;
+    if( sigaction( SIGINT,  &action, NULL ) < 0 ) /*signal install error*/ (void)NULL;
+    action.sa_handler = SIG_IGN;
+    if( sigaction( SIGPIPE, &action, NULL ) < 0 ) /*signal install error*/ (void)NULL;
+  }
+  #endif
+
+  dcled::Device dev(virtual_dev_arg ? dcled::Device(std::string(dcled::Device::EMULATED_DEV_PATH))
+                                    : pathArg ? dcled::Device(pathArg.Get(), stdout_arg)
+                                              : dcled::Device(stdout_arg));
   if (!dev.isOpen()) {
     error() << "Error opening device" << (pathArg ? " (" + pathArg.Get() + ")." : ".");
     return 1;
   }
+//  auto ua = std::make_unique<dcled::PrintAnimation>(dcled::PrintAnimation(dcled::Screen().invert()));
+//  std::unique_ptr<dcled::Animation> ua2
+//      = std::make_unique<dcled::PrintAnimation>(dcled::PrintAnimation(dcled::Screen().invert()));
+//  dev.enqueue(dcled::ShowScreenAnimation(dcled::Screen().invert()));
+//  dev.enqueue(dcled::ShowScreenAnimation(dcled::Screen().invert()));
+  dev.enqueue(dcled::ShowScreenAnimation(dcled::Screen().invert()));
+  dev.enqueue( new dcled::ShowScreenAnimation(dcled::Screen().invert()));
+//  dev.enqueue(std::make_unique<dcled::FontAnimation1>("TEST"));
+//  dev.enqueue(dcled::FontAnimation("This is a string scroll test @@ !", dcled::ScrollSpeed::Fast));
+//  dcled::FontAnimation fa("Another test");
+//  dev.enqueue(std::move(fa));
 
-  dcled::ExitAnimation e;
-  dcled::ExitAnimation2 e2;
-
-  dev.enqueue(std::make_unique<dcled::ExitAnimation>());
-//s  dev.enqueue(std::make_unique<dcled::ExitAnimation2>());
-  dev.enqueue(std::make_unique<dcled::FontAnimation1>());
   dev.playAll();
   return 0;
 }
 
-int listDevices(bool emulate)
-{
-  auto devices = emulate ? std::list<dcled::DeviceInfo>{{0, 0, dcled::Device::EMULATED_DEV_PATH,
-                                                         "#0", "Emulator", "stdout"}}
-                         : dcled::Device::list();
-  for( const auto& dev : devices ) {
-    print() << " * " << "Device:       " << std::hex << dev.vendor_id << " "
-                                                     << dev.product_id << std::dec;
-    print() << "   " << "Path:         " << dev.path;
-    print() << "   " << "Manufacturer: " << dev.manufacturer;
-    print() << "   " << "Product:      " << dev.product << std::endl;
-  }
-  print() << "*** Found " << devices.size() << (devices.size() == 1 ? " device." : " devices.") << std::endl;
-  return static_cast<int>(devices.size());
-}

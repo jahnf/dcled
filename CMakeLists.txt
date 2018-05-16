@@ -23,20 +23,19 @@ add_library(dcledlib STATIC EXCLUDE_FROM_ALL
   fonts.cc fonts.h
   pixmap.cc pixmap.h
   screen.cc screen.h
-  dcled-main.cc
   moodycamel/concurrentqueue.h
 )
 target_include_directories(dcledlib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} PRIVATE hidapi)
 
 if(BUILD_WITH_HIDAPI_LIBUSB)
-  add_executable(dcled args/args.hxx)
+  add_executable(dcled dcled-main.cc args/args.hxx)
   target_link_libraries(dcled dcledlib hidapi-libusb pthread)
   target_include_directories(dcled PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   set_property(TARGET dcled PROPERTY CXX_STANDARD 14)
 endif()
 
 if(BUILD_WITH_HIDAPI_RAW)
-  add_executable(dcled-raw args/args.hxx)
+  add_executable(dcled-hidapi-raw dcled-main.cc args/args.hxx)
   target_link_libraries(dcled-raw dcledlib hidapi-hidraw pthread)
   target_include_directories(dcled-raw PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   set_property(TARGET dcled-raw PROPERTY CXX_STANDARD 14)

@@ -19,10 +19,10 @@ namespace dcled
     };
 
     // The default font
-    extern const Font def;
+    extern const Font Default;
 
     // A smaller font
-    extern const Font small;
+    extern const Font Small;
   }
 }
 
