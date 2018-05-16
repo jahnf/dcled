@@ -11,14 +11,14 @@
 #include "screen.h"
 
 namespace {
-  struct print
-  {
+
+  struct print {
     template<typename T>
     auto& operator<<(const T& a) const { return std::cout << a; }
     ~print() { std::cout << std::endl; }
   };
-  struct error
-  {
+
+  struct error {
     template<typename T>
     auto& operator<<(const T& a) const { return std::cerr << a; }
     ~error() { std::cerr << std::endl; }
@@ -40,9 +40,10 @@ namespace {
 
   int listDevices(bool emulate)
   {
-    auto devices = emulate ? std::list<dcled::DeviceInfo>{{0, 0, dcled::Device::EMULATED_DEV_PATH,
-                                                           "#0", "Emulator", "stdout"}}
-                           : dcled::Device::list();
+    auto devices = dcled::Device::list();
+    if (emulate) devices.push_back( {0, 0, dcled::Device::EMULATED_DEV_PATH,
+                                     "#0", "Emulator", "stdout"});
+
     for( const auto& dev : devices ) {
       print() << " * " << "Device:       " << std::hex << dev.vendor_id << " "
                                                        << dev.product_id << std::dec;
@@ -100,7 +101,7 @@ int main(int argc, char* argv[])
   }
 
   if (list_arg) {
-    listDevices(virtual_dev_arg);
+    listDevices(virtual_dev_arg || stdout_arg);
     return 0;
   }
 
