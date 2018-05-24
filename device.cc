@@ -1,4 +1,4 @@
-  #include "device.h"
+#include "device.h"
 
 #include "animations.h"
 #include "screen.h"
@@ -8,8 +8,10 @@
 #include <codecvt>
 #include <iostream>
 #include <locale>
+#include <sstream>
 #include <thread>
 #include <utility>
+
 #include <hidapi/hidapi.h>
 
 // Linux only, TODO Windows alternative for isatty...
@@ -52,6 +54,7 @@ namespace {
 
 
 constexpr char dcled::Device::EMULATED_DEV_PATH[];
+constexpr char dcled::Device::INVALID_DEV_PATH[];
 
 void dcled::stopThreads(int /*s*/)
 {
@@ -64,6 +67,9 @@ struct dcled::Device::Impl
     : handle(hid_open(VENDOR_ID, PRODUCT_ID, NULL)),
       to_stdout(toStdout), stdout_is_tty(stdoutIsTty())
   {
+    std::stringstream ss;
+    ss << "VENDOR_ID: " << std::hex << VENDOR_ID << ", PRODUCT_ID: " << PRODUCT_ID;
+    path = ss.str();
     if (this->to_stdout && stdout_is_tty) {
       for (int i = 0; i < Screen::HEIGHT; ++i) std::cout << std::endl;
     }
@@ -72,9 +78,13 @@ struct dcled::Device::Impl
   Impl(const std::string usb_path, bool toStdout = false)
     : to_stdout(toStdout), stdout_is_tty(stdoutIsTty())
   {
-    if (usb_path.compare( EMULATED_DEV_PATH ) != 0) {
+    if (usb_path.compare( INVALID_DEV_PATH ) == 0) {
+      handle = nullptr;
+    }
+    else if (usb_path.compare( EMULATED_DEV_PATH ) != 0) {
       handle = hid_open_path(usb_path.c_str());
-    } else {
+    }
+    else {
       this->to_stdout = emulated_only = true;
     }
 
@@ -137,8 +147,9 @@ struct dcled::Device::Impl
   }
 
   hid_device* handle = nullptr;
+  std::string path = "/dev/null";
   InternalScreen screen;
-  moodycamel::ConcurrentQueue<std::unique_ptr<Animation>> animations;
+  moodycamel::ConcurrentQueue<std::unique_ptr<dcled::Animation>> animations;
   bool to_stdout = false;
   bool stdout_is_tty = false;
   bool emulated_only = false;
@@ -197,6 +208,11 @@ bool dcled::Device::isOpen() const
   return p_->handle;
 }
 
+const std::string& dcled::Device::path() const
+{
+  return p_->path;
+}
+
 void dcled::Device::update()
 {
   p_->screenToDevice();
@@ -213,6 +229,3 @@ void dcled::Device::playAll()
   auto t = std::thread(&Impl::animationThread, p_.get());
   t.join();
 }
-
-
-

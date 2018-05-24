@@ -49,8 +49,8 @@ namespace dcled {
   class ShowScreenAnimation : public Animation
   {
   public:
-    ShowScreenAnimation(const Screen& s, uint32_t time_ms = 1000 );// : s_(s), time_ms_(time_ms) {}
-    virtual ~ShowScreenAnimation(); // = default;
+    ShowScreenAnimation(const Screen& s, uint32_t time_ms = 1000 );
+    virtual ~ShowScreenAnimation() = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override { done_ = false; }
   private:
@@ -67,7 +67,7 @@ namespace dcled {
     TextAnimation(const std::string& text, uint32_t speed, const font::Font& font = font::Default);
     TextAnimation(const std::string& text, ScrollSpeed speed = ScrollSpeed::Medium,
                   const font::Font& font = font::Default);
-    virtual ~TextAnimation();// = default;
+    virtual ~TextAnimation() = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override;
   private:

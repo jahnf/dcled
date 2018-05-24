@@ -22,14 +22,7 @@ namespace {
 namespace dcled {
 
   ShowScreenAnimation::ShowScreenAnimation(const Screen& s, uint32_t time_ms )
-    : s_(s), time_ms_(time_ms) {
-    print() << "                    Create: ShowScreenAnimation()" << this;
-  }
-  ShowScreenAnimation::~ShowScreenAnimation( )
-  {
-    print() << "                   Destroy: ShowScreenAnimation()" << this;
-  }
-
+    : s_(s), time_ms_(time_ms) {}
 
   void printchar(Screen& s, const font::Font &f, uint8_t c, uint8_t x_pos, uint8_t y_pos = 0) {
     for (uint8_t cx, cy = 0, x; cy < f.height && y_pos < Screen::HEIGHT; ++cy, ++y_pos) {
@@ -44,17 +37,10 @@ namespace dcled {
     : font_(font), text_(text) {}
 
   TextAnimation::TextAnimation(const std::string& text, ScrollSpeed speed, const font::Font& font)
-    : font_(font), text_(text), scrollspeed_(static_cast<uint32_t>(speed)) {
-    print() << "Create TextAnimation " << this;
-  }
+    : font_(font), text_(text), scrollspeed_(static_cast<uint32_t>(speed)) {}
 
   TextAnimation::TextAnimation(const std::string& text, uint32_t speed, const font::Font& font)
     : font_(font), text_(text), scrollspeed_(speed) {}
-
-  TextAnimation::~TextAnimation()
-  {
-    print() << "Destroy TextAnimation " << this;
-  }
 
   uint32_t TextAnimation::step(Screen& screen)
   {
