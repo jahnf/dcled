@@ -1,21 +1,13 @@
-#include <iostream>
-
 #include <signal.h>
 
 #include "animations.h"
 #include "dcled-cli.h"
 #include "device.h"
+#include "output.h"
 
 namespace {
-  struct error {
-    template<typename T>
-    auto& operator<<(const T& a) const { return std::cerr << a; }
-    ~error() { std::cerr << std::endl; }
-  };
-
-  void sighandler(int s)
-  {
-    dcled::stopThreads(s);
+  void sighandler(int s) {
+    dcled::Device::stopThreads(s);
   }
 } // end anonymous namespace
 
@@ -23,23 +15,26 @@ static std::list<std::unique_ptr<dcled::Animation>> mylist;
 
 int main(int argc, char* argv[])
 {
+  // Parse command line, print errors, print help ...
   auto& parser = dcled::cli::ArgParser::instance();
   const auto state = dcled::cli::ArgParser::instance().parse(argc, argv);
   if (state != dcled::cli::ArgParser::State::OK) {
     return static_cast<int>(state);
   }
 
+  // Get device and check if it is in a valid 'open' state.
   dcled::Device dev = parser.device();
   if (!dev.isOpen()) {
     error() << "Error opening device" << " (" + dev.path() + ").";
     return 1;
   }
 
+  // Add all animations from the command line parser to the device's animation queue.
   for( auto& a : dcled::cli::ArgParser::instance().animationList() ) {
     dev.enqueue(std::move(a));
   }
 
-  // Install signal handler to be able to stop threads gracefully
+  // Install signal handler to be able to stop animation threads gracefully
   #ifdef _WIN32
     signal(SIGABRT, &sighandler);
     signal(SIGTERM, &sighandler);
@@ -58,7 +53,7 @@ int main(int argc, char* argv[])
   }
   #endif
 
+  // Play all the animations in the device's queue
   dev.playAll();
-
   return 0;
 }

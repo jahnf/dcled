@@ -1,17 +1,13 @@
-# Set up permissions for root-free dcled message board
+# Set up permissions for non root users to the dcled message board
 
-# If you are using the libusb implementation of hidapi (libusb/hid.c), then
-# use something like the following line, substituting the VID and PID with
-# those of your device. Note that for kernels before 2.6.24, you will need
-# to substitute "usb" with "usb_device". It shouldn't hurt to use two lines
-# (one each way) for compatibility with older systems.
+# Copy this file to /etc/udev/rules.d/40-dcled.rules
+# Run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
+# to load rules without rebooting.
+
+# Note that for kernels before 2.6.24, you will need to substitute "usb" with "usb_device".
 
 # HIDAPI/libusb
 SUBSYSTEM=="usb", ATTRS{idVendor}=="1d34", ATTRS{idProduct}=="0013", MODE="660",GROUP="plugdev"
-
-# If you are using the hidraw implementation (linux/hid.c), then do something
-# like the following, substituting the VID and PID with your device. Busnum 1
-# is USB.
 
 # HIDAPI/hidraw
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d34", ATTRS{idProduct}=="0013", MODE="0660", GROUP="plugdev"

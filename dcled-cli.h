@@ -37,11 +37,11 @@ namespace dcled {
       ArgParser(const ArgParser&)= delete;
       ArgParser& operator=(const ArgParser&)= delete;
 
+      void reset();
       std::string path_;
       bool parsed_ = false;
       bool virtual_ = false;
       bool to_stdout_ = false;
-      //static AnimationList mylist;
     };
   }
 }

@@ -35,14 +35,20 @@ namespace dcled {
     int counter_ = 10;
   };
 
-  class TestAnimation1 : public Animation
+  class ClockAnimation : public Animation
   {
   public:
-    virtual ~TestAnimation1() = default;
+    enum class Mode { H24 = 24, H12 = 12 };
+    ClockAnimation( uint32_t display_time_s = 0, bool blinking_colon = true, Mode mode = Mode::H24 );
+    virtual ~ClockAnimation() = default;
     virtual uint32_t step(Screen&) override;
-    virtual void reset() override { counter_= 0;}
+    virtual void reset() override;
   private:
-    int counter_ = 0;
+    uint32_t display_time_s_ = 0; // 0: indefinitely
+    uint64_t time_left_ms_ = 0;
+    bool blinking_colon_ = true;
+    bool colon_show_state_ = true;
+    Mode mode_ = Mode::H24;
   };
 
   /// Shows a screen for the given time.

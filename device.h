@@ -28,8 +28,6 @@ namespace dcled
     const std::string product;
   };
 
-  void stopThreads(int s = 2);
-
   class Device
   {
   public:
@@ -56,6 +54,9 @@ namespace dcled
     /// Returns if the usb device was successfully opened.
     bool isOpen() const;
 
+    /// Set internal flag to stop all running device animation threads.
+    static void stopThreads(int s = 2);
+
     const std::string& path() const;
 
     /// Send the current screen to the device manually.
@@ -73,6 +74,7 @@ namespace dcled
       enqueue(std::make_unique<AnimType>(std::move(a)));
     }
 
+    /// Takes ownership of the enqueued animation.
     template<typename AnimType> void enqueue(AnimType* a) {
       static_assert(std::is_base_of<Animation, AnimType>::value,
                     "AnimType must derive from Animation");

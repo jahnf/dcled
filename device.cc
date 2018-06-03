@@ -1,6 +1,7 @@
 #include "device.h"
 
 #include "animations.h"
+#include "output.h"
 #include "screen.h"
 
 #include <atomic>
@@ -33,13 +34,6 @@ namespace {
     return isatty(fileno(stdout));
   }
 
-  struct debug
-  {
-    template<typename T>
-    auto& operator<<(const T& a) const { return std::cout << a; }
-    ~debug() { std::cout << std::endl; }
-  };
-
   // Screen with modified flag for the internal implementation
   struct InternalScreen : public dcled::Screen
   {
@@ -56,7 +50,7 @@ namespace {
 constexpr char dcled::Device::EMULATED_DEV_PATH[];
 constexpr char dcled::Device::INVALID_DEV_PATH[];
 
-void dcled::stopThreads(int /*s*/)
+void dcled::Device::stopThreads(int /*s*/)
 {
   ::threadStop = true;
 }
@@ -111,9 +105,11 @@ struct dcled::Device::Impl
   {
     //debug() << "started animation thread " << std::this_thread::get_id();
     std::unique_ptr<Animation> a;
+    uint32_t animDurationMs = 0;
     while (!::threadStop && animations.try_dequeue(a))
     {
-      while( uint32_t animDurationMs = a->step(screen) ) {
+      while (!::threadStop && (animDurationMs = a->step(screen)))
+      {
         auto timeUntil = std::chrono::high_resolution_clock::now();
         while (!::threadStop && ( animDurationMs > 0 ))
         {
@@ -123,7 +119,7 @@ struct dcled::Device::Impl
         }
       }
     }
-    debug() << "stopping animation thread " << std::this_thread::get_id();
+    // debug() << "stopping animation thread " << std::this_thread::get_id();
   }
 
   void terminalPosReset() {
@@ -172,7 +168,7 @@ dcled::Device::Device(Device&& other)
 
 dcled::Device::~Device()
 {
-  debug() << "~Device()";
+  // debug() << "~Device()";
 }
 
 const std::list<dcled::DeviceInfo> dcled::Device::list()
@@ -183,6 +179,11 @@ const std::list<dcled::DeviceInfo> dcled::Device::list()
     hid_device_info* devs = hid_enumerate(0x0, 0x0);
     for (hid_device_info* cur_dev = devs; cur_dev; cur_dev = cur_dev->next) {
       if (cur_dev->vendor_id == VENDOR_ID && cur_dev->product_id == PRODUCT_ID) {
+        if (!cur_dev->manufacturer_string || !cur_dev->product_string || !cur_dev->serial_number) {
+          error() << "Could not open device at '" << cur_dev->path
+                  << "'." << "Check your udev rules.";
+          continue;
+        }
         std::wstring_convert<std::codecvt_utf8<wchar_t>,wchar_t> cv;
         device_list.push_back( DeviceInfo{ VENDOR_ID, PRODUCT_ID, cur_dev->path,
                                            cv.to_bytes(cur_dev->serial_number),
@@ -222,7 +223,6 @@ void dcled::Device::enqueue_ptr(std::unique_ptr<Animation> a)
 {
   if(a) p_->animations.enqueue(std::move(a));
 }
-
 
 void dcled::Device::playAll()
 {

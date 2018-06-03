@@ -1,25 +1,210 @@
 #include "dcled-cli.h"
 
 #include "animations.h"
+#include "output.h"
 
 #include <args/args.hxx>
 
-#include <iostream>
+#include <algorithm>
+#include <cerrno>
+#include <cstring>
+#include <fstream>
 #include <vector>
 
-namespace {
-  struct print {
-    template<typename T>
-    auto& operator<<(const T& a) const { return std::cout << a; }
-    ~print() { std::cout << std::endl; }
+#define ANIMATIONREADER_THROWS 1
+
+namespace // *****************************************************************
+{
+  int listDevices(bool emulate);
+  std::vector<std::string> split(const std::string& s, const std::string& delimiter = ",",
+                                 bool skipEmpty = true, size_t maxSplits = 0);
+  std::vector<std::string> split_first_one(const std::string& s, const std::string& delimiter = ",",
+                                           bool skipEmpty = true);
+  void parseError(std::string msg, std::string& errormsg, bool forceNoParseErrorException = false);
+  bool parseAnimationLine(const std::string& value, std::string& errormsg, dcled::AnimationList* list,
+                          bool forceNoParseErrorException = false);
+
+  bool make_TextAnimation(const std::vector<std::string>& animationArgs,
+                          const std::string& animationData,
+                          std::string& errormsg, dcled::AnimationList* list,
+                          bool forceNoParseErrorException = false);
+
+  bool make_ClockAnimation(const std::vector<std::string>& animationArgs,
+                           const std::string& animationData,
+                           std::string& errormsg, dcled::AnimationList* list,
+                           bool forceNoParseErrorException = false);
+
+  bool anim_FileReader(const std::vector<std::string>& animationArgs,
+                       const std::string& animationData,
+                       std::string& errormsg, dcled::AnimationList* list,
+                       bool forceNoParseErrorException = false);
+
+  // Struct for animation type and corresponding parser function.
+  struct TypeEntry {
+    char type = 0;
+    // Function takes a vector of arguments (while the first argument
+    // normally equals the type.), a string of data (from after the =),
+    // a reference to the errormsg, a pointer to the animation list
+    // and a "force no parse error exception" boolean flag.
+    bool (*func)(const std::vector<std::string>&, const std::string&,
+                 std::string& errormsg, dcled::AnimationList*, bool) = nullptr;
   };
 
-  struct error {
-    template<typename T>
-    auto& operator<<(const T& a) const { return std::cerr << a; }
-    ~error() { std::cerr << std::endl; }
+  // Animation type -> parser function array
+  constexpr std::array<TypeEntry, 3> animationTypes = {{
+    {'t', make_TextAnimation}, {'f', anim_FileReader}, {'c', make_ClockAnimation}
+  }};
+
+  // AnimationReader - custom parsing for args::ArgumentParser
+  template<dcled::AnimationList* List>
+  struct AnimationReader {
+    void operator()(const std::string& name, const std::string& value, std::string& errormsg)
+    {
+      parseAnimationLine(value, errormsg, List);
+    }
   };
 
+  // Static list (template parameters need linkage...)
+  dcled::AnimationList Animation_List_;
+} // end anonymous namespace
+
+namespace dcled { namespace cli // ****************************************************************
+{
+  dcled::AnimationList ArgParser::animationList()
+  {
+    return std::move(Animation_List_);
+  }
+
+  dcled::Device ArgParser::device()
+  {
+    if (!parsed_) return dcled::Device();
+    if (path_.size()) return dcled::Device(path_, to_stdout_);
+    return dcled::Device(to_stdout_);
+  }
+
+  void ArgParser::reset()
+  {
+    Animation_List_.clear();
+    path_.clear();
+    parsed_ = false;
+    virtual_ = false;
+    to_stdout_ = false;
+  }
+
+  ArgParser::State ArgParser::parse(int argc, char *argv[])
+  {
+    reset();
+
+    args::ArgumentParser parser("Dream Cheeky LED Message Board driver.");
+    args::CompletionFlag c(parser, {"complete"});
+    args::HelpFlag help_arg(parser, "help", "Display this help menu", {'h', "help"});
+    args::HelpFlag version_arg(parser, "version", "Display the program version", {"version"});
+    args::Flag list_arg(parser, "list", "List all dcled devices", {'l', "list"});
+    args::ValueFlag<std::string> path_arg(parser, "path", "USB device path", {'p', "path"});
+    args::Flag stdout_arg(parser, "stdout", "Print device screen to stdout", {'s', "stdout"});
+    args::Flag virtual_dev_arg(parser, "virtual", "Use only virtual stdout device\n"
+                                                  "(includes --stdout)", {'v', "virtual"});
+
+    args::Base emptyLine(""); parser.Add( emptyLine );
+    args::PositionalList<std::string, std::list, AnimationReader<&Animation_List_>>
+            animations(parser, "ANIMATION", "List of animations with the format:\n" "[Type][,Arg:Value...][=Data]");
+    parser.Add( emptyLine );
+
+    args::NamedBase text0("f : Read from File","Read animation list from file\n"
+                                              "  Data (required) : File path" );
+    parser.Add( text0 ); parser.Add( emptyLine );
+
+    args::NamedBase text1("t : TextAnimation","Scrolling text\n"
+                                              "  Optional Arguments:\n"
+                                              "   - ScrollSpeed 's' : ms (default=100)\n"
+                                              "  Data (required) : Scroll text" );
+    parser.Add( text1 );
+    args::NamedBase text2("c : ClockAnimation","Show the current time\n"
+                                              "  Optional Arguments:\n"
+                                              "   - Duration 'd' : seconds (default=30)\n"
+                                              "   - ColonBlink 'b' : 0 or 1 (default=1)\n"
+                                              "   - Format 'f' : 12 or 24 (default=24)" );
+    parser.Add( text2 );
+
+    try
+    {
+      parser.ParseCLI(argc, argv);
+    }
+    catch (args::Help flag)
+    {
+      if (flag.what() == std::string("version"))
+        print() << "TODO: Build in version information (auto generated via CMake & git)";
+      else
+        std::cout << parser;
+      return State::EXIT;
+    }
+    catch (args::ParseError e)
+    {
+      error() << "ParseError: " << e.what();
+      return State::ERROR;
+    }
+    catch (args::Completion &e)
+    {
+      std::cout << e.what();
+      return State::EXIT;
+    }
+    catch (args::ValidationError e)
+    {
+      error() << "ValidationError: " << e.what();
+      return State::ERROR;
+    }
+
+    if (!virtual_dev_arg && !HidApi::init()) {
+      error() << "Error: hid_init() failed.";
+      return State::ERROR;
+    }
+
+    if (list_arg) {
+      listDevices(virtual_dev_arg || stdout_arg);
+      return State::EXIT;
+    }
+
+    if (!virtual_dev_arg)
+    {
+      if (!dcled::Device::list().size()) {
+        error() << "No DC LED Message Board found.";
+        return State::ERROR;
+      }
+    }
+
+    if (animations) {
+      bool error_occured = false;
+      for (auto& errmsg: animations.Get()) {
+        if (errmsg.size()) {
+          if (!error_occured) {
+            error_occured = true;
+            error() << "Animation parse errors:";
+          }
+          error() << " - " << errmsg;
+        }
+      }
+      if (error_occured)
+        return State::ERROR;
+    }
+
+    parsed_ = true;
+    to_stdout_ = stdout_arg;
+
+    if (virtual_dev_arg) {
+      virtual_ = true;
+      path_ = std::string(dcled::Device::EMULATED_DEV_PATH);
+    }
+    else if (path_arg) {
+      path_ = path_arg.Get();
+    }
+
+    return State::OK;
+  }
+}} // end namespace dcled::cli
+
+namespace // *****************************************************************
+{
+  // Pretty print the list of devices
   int listDevices(bool emulate)
   {
     auto devices = dcled::Device::list();
@@ -40,16 +225,19 @@ namespace {
     return static_cast<int>(devices.size());
   }
 
-  std::vector<std::string> split(const std::string& s, const std::string& delimiter = ",",
-                                 bool skipEmpty = true)
+  // Helper function to split strings with a given delimiter into a vector
+  std::vector<std::string> split(const std::string& s, const std::string& delimiter,
+                                 bool skipEmpty, size_t maxSplits)
   {
     std::vector<std::string> strings;
-    size_t last = 0, next = 0;
-    while ((next = s.find(delimiter, last)) != std::string::npos)
+    size_t last = 0, next = 0, count = 0;
+    while (((next = s.find(delimiter, last)) != std::string::npos)
+            && (maxSplits == 0 || count < maxSplits))
     {
       auto substr = s.substr(last, next-last);
       if (!skipEmpty || substr.size()) {
         strings.push_back(std::move(substr));
+        ++count;
       }
       last = next + 1;
     }
@@ -60,175 +248,183 @@ namespace {
     return strings;
   }
 
-  std::vector<std::string> split_first(const std::string& s, const std::string& delimiter = ",",
-                                       bool skipEmpty = true)
+  // Split only on the first occurance
+  std::vector<std::string> split_first_one(const std::string& s, const std::string& delimiter,
+                                           bool skipEmpty)
   {
-    std::vector<std::string> strings;
-    size_t pos = 0, last = 0;
-    if ((pos = s.find(delimiter, last)) != std::string::npos)
-    {
-      auto substr = s.substr(last, pos-last);
-      if (!skipEmpty || substr.size()) {
-        strings.push_back(std::move(substr));
-      }
-      last = pos + 1;
-    }
-    auto substr = s.substr(last);
-    if (!skipEmpty || substr.size()) {
-      strings.push_back(std::move(substr));
-    }
-    return strings;
+    return split(s, delimiter, skipEmpty, 1);
   }
 
-  template<typename Container, class T>
-  bool contains(const Container& c, T p) {
-      return std::find(c.cbegin(), c.cend(), p) != c.cend();
+  // Generate a parse error
+  void parseError(std::string msg, std::string& errormsg, bool forceNoParseErrorException)
+  {
+    #if ANIMATIONREADER_THROWS > 0
+      if (!forceNoParseErrorException) throw args::ParseError(msg);
+    #endif
+    errormsg = std::move(msg);
   }
 
-  constexpr std::array<char, 10> animationShorts = { 't', 'f' };
-
-  template<std::list<std::unique_ptr<dcled::Animation>>* List>
-  struct AnimationReader {
-    void operator()(const std::string &name, const std::string &value, std::string &errormsg)
-    {
-      if (!value.size()) return;
-
-      if (!contains(animationShorts, value[0])) {
-        //throw args::ParseError("aaaaaaaaaaaaaaaaaaa");
-        errormsg += "Invalid Animation descr4ipttion.";
-        return;
-      }
-      // t,100=skdfjasdlfk lkj lk
-//      List->push_back( value );
-//      if (
-
-      const auto a = split_first(value, "=");
-      if (a.size() > 1 && a.front()[0] == 't')
+  // Try to create and append a ClockAnimation with the given arguments
+  bool make_ClockAnimation(const std::vector<std::string>& animationArgs,
+                           const std::string& animationData,
+                           std::string& errormsg, dcled::AnimationList* list,
+                           bool forceNoParseErrorException)
+  {
+    // default arguments
+    dcled::ClockAnimation::Mode mode = dcled::ClockAnimation::Mode::H24;
+    uint32_t display_time_s = 30;
+    bool blinking_colon = true;
+    // first argument is always animation character itself.
+    if (animationArgs.size() > 1) {
+      for (auto it = ++animationArgs.cbegin(), end = animationArgs.cend(); it != end; ++it)
       {
-        List->push_back(std::make_unique<dcled::TextAnimation>(a[1]));
-      }
-
-      else
-        errormsg = value;
-    }
-  };
-
-  dcled::AnimationList Animation_List_;
-} // end anonymous namespace
-
-dcled::AnimationList dcled::cli::ArgParser::animationList()
-{
-  return std::move(Animation_List_);
-}
-
-dcled::Device dcled::cli::ArgParser::device()
-{
-  if (!parsed_) return dcled::Device();
-  if (path_.size()) return dcled::Device(path_, to_stdout_);
-  return dcled::Device(to_stdout_);
-}
-
-dcled::cli::ArgParser::State
-dcled::cli::ArgParser::parse(int argc, char *argv[])
-{
-  Animation_List_.clear();
-  path_.clear();
-  parsed_ = false;
-  virtual_ = false;
-  to_stdout_ = false;
-
-  args::ArgumentParser parser("Dream Cheeky LED Message Board driver.");
-  args::HelpFlag help_arg(parser, "help", "Display this help menu", {'h', "help"});
-  args::HelpFlag version_arg(parser, "version", "Display the program version", {"version"});
-  args::Flag list_arg(parser, "list", "List all dcled devices", {'l', "list"});
-  args::ValueFlag<std::string> path_arg(parser, "path", "USB device path", {'p', "path"});
-  args::Flag stdout_arg(parser, "stdout", "Print device screen to stdout", {'s', "stdout"});
-  args::Flag virtual_dev_arg(parser, "virtual", "Use only virtual stdout device\n"
-                                                "(includes --stdout)", {'v', "virtual"});
-
-  args::Base emptyLine(""); parser.Add( emptyLine );
-  args::PositionalList<std::string, std::list, AnimationReader<&Animation_List_>>
-          animations(parser, "ANIMATION", "List of animations with the format:\n" "[Type][,Arguments...][=Data]");
-  parser.Add( emptyLine );
-
-  args::NamedBase text1("f : Read from File","Read animation list from file\n"
-                                            "  Data (required) : File path" );
-  parser.Add( text1 ); parser.Add( emptyLine );
-
-  args::NamedBase text0("t : TextAnimation","Scrolling text\n"
-                                            "  Optional Arguments:\n"
-                                            "   - ScrollSpeed (default=100)\n"
-                                            "  Data (required) : Scroll text" );
-  parser.Add( text0 );
-
-  try
-  {
-    parser.ParseCLI(argc, argv);
-  }
-  catch (args::Help flag)
-  {
-    if (flag.what() == std::string("version"))
-      print() << "TODO: Build in version information (auto generated via CMake & git)";
-    else
-      std::cout << parser;
-    return State::EXIT;
-  }
-  catch (args::ParseError e)
-  {
-    error() << "ParseError: " << e.what();
-    //std::cerr << parser;
-    return State::ERROR;
-  }
-  catch (args::ValidationError e)
-  {
-    error() << "ValidationError: " << e.what();
-    //std::cerr << parser;
-    return State::ERROR;
-  }
-
-  if (!virtual_dev_arg && !HidApi::init()) {
-    error() << "Error: hid_init() failed.";
-    return State::ERROR;
-  }
-
-  if (list_arg) {
-    listDevices(virtual_dev_arg || stdout_arg);
-    return State::EXIT;
-  }
-
-  if (!virtual_dev_arg)
-  {
-    if (!dcled::Device::list().size()) {
-      error() << "No DC LED Message Board found.";
-      return State::ERROR;
-    }
-  }
-
-  if (animations) {
-    bool error_occured = false;
-    for (auto& errmsg: animations.Get()) {
-      if (errmsg.size()) {
-        if (!error_occured) {
-          error_occured = true;
-          error() << "Animation parse error:";
+        const auto arg = split_first_one(*it, ":", true);
+        if (arg.size() < 2) {
+          parseError(std::string("ClockAnimation: Argument '")
+                                  + (arg.size() ? arg[0] : "")
+                                  + "' without value.", errormsg, forceNoParseErrorException);
+          return false;
         }
-        error() << " - " << errmsg;
+        if (arg[0] == "f") {
+          const int mode_arg = std::atoi( arg[1].c_str() );
+          if( mode_arg != static_cast<int>(dcled::ClockAnimation::Mode::H12)
+              && mode_arg != static_cast<int>(dcled::ClockAnimation::Mode::H24) ) {
+            parseError(std::string("ClockAnimation: Invalid value for '") + arg[0] + "'",
+                                   errormsg, forceNoParseErrorException);
+            return false;
+          }
+          mode = static_cast<dcled::ClockAnimation::Mode>(mode_arg);
+        }
+        else if (arg[0] == "d") {
+          try { display_time_s = std::stoul( arg[1] ); }
+          catch(...) {
+            parseError(std::string("ClockAnimation: Invalid value for '") + arg[0] + "'",
+                                   errormsg, forceNoParseErrorException);
+            return false;
+          }
+        }
+        else if (arg[0] == "b") {
+          try{ blinking_colon = std::stoi( arg[1] ); }
+          catch(...) {
+            parseError(std::string("ClockAnimation: Invalid value for '") + arg[0] + "'",
+                                   errormsg, forceNoParseErrorException);
+            return false;
+          }
+        }
+        else {
+          parseError(std::string("ClockAnimation: Unknown argument '") + arg[0] + "'.",
+                     errormsg, forceNoParseErrorException);
+          return false;
+        }
       }
     }
-    if (error_occured)
-      return State::ERROR;
+    list->push_back(std::make_unique<dcled::ClockAnimation>(display_time_s, blinking_colon, mode));
   }
 
-  parsed_ = true;
-  to_stdout_ = stdout_arg;
-
-  if (virtual_dev_arg) {
-    virtual_ = true;
-    path_ = std::string(dcled::Device::EMULATED_DEV_PATH);
+  // Try to create and append TextAnimation to the list with the given arguments and data
+  bool make_TextAnimation(const std::vector<std::string>& animationArgs,
+                          const std::string& animationData,
+                          std::string& errormsg, dcled::AnimationList* list,
+                          bool forceNoParseErrorException)
+  {
+    if (!animationData.size()) {
+      parseError("TextAnimation: Empty text data.", errormsg, forceNoParseErrorException);
+      return false;
+    }
+    uint32_t scrollspeed = 100;
+    // first argument is always animation character itself.
+    if (animationArgs.size() > 1) {
+      for (auto it = ++animationArgs.cbegin(), end = animationArgs.cend(); it != end; ++it)
+      {
+        const auto arg = split_first_one(*it, ":", true);
+        if (arg.size() < 2) {
+          parseError(std::string("TextAnimation: Argument '")
+                                  + (arg.size() ? arg[0] : "")
+                                  + "' without value.", errormsg, forceNoParseErrorException);
+          return false;
+        }
+        if (arg[0] == "s") {
+          scrollspeed = std::atol( arg[1].c_str() );
+          if( scrollspeed == 0 ) {
+            parseError(std::string("TextAnimation: Invalid value for argument '")
+                                    + arg[0] + "'.", errormsg, forceNoParseErrorException);
+            return false;
+          }
+        }
+        else {
+          parseError(std::string("TextAnimation: Unknown argument '") + arg[0] + "'.",
+                     errormsg, forceNoParseErrorException);
+          return false;
+        }
+      }
+    }
+    list->push_back(std::make_unique<dcled::TextAnimation>(animationData, scrollspeed));
+    return true;
   }
-  else if (path_arg) {
-    path_ = path_arg.Get();
+
+  // Parse an animation description
+  bool parseAnimationLine(const std::string& value, std::string& errormsg,
+                          dcled::AnimationList* list, bool forceNoParseErrorException)
+  {
+    if (!value.size()) return false;
+    const auto svalue = split_first_one(value, "=");
+    // check if second character is either a '=' or a ','
+    if (value.size() > 1 && value[1] != '=' && value[1] != ',' ) {
+      parseError(std::string("Invalid animation type '") + split(svalue[0])[0] + "'",
+                 errormsg, forceNoParseErrorException);
+      return false;
+    }
+    // Check if the character is a valid animation type
+    const auto it = std::find_if(animationTypes.cbegin(), animationTypes.cend(),
+                                 [&value](const TypeEntry& tp){return tp.type == value[0];});
+
+    if ( it == animationTypes.cend() ) {
+      parseError(std::string("Invalid animation type '") + value[0] + "'",
+                 errormsg, forceNoParseErrorException);
+      return false;
+    }
+    // Call animation parser function from array.
+    return it->func(split(svalue[0]), svalue.size() > 1 ? svalue[1] : std::string(),
+                    errormsg, list, forceNoParseErrorException);
   }
 
-  return State::OK;
-}
+  // Try to read animation descriptions from the given filename
+  bool anim_FileReader(const std::vector<std::string>& animationArgs,
+                       const std::string& animationData,
+                       std::string& errormsg, dcled::AnimationList* list,
+                       bool forceNoParseErrorException)
+  {
+    if (!animationData.size()) {
+      parseError("Animation FileReader: Missing file name.", errormsg, forceNoParseErrorException);
+      return false;
+    }
+
+    std::ifstream infile(animationData);
+    if (!infile.is_open()) {
+      parseError("Could not open file '" + animationData + "': " + std::strerror(errno),
+                 errormsg, forceNoParseErrorException );
+      return false;
+    }
+
+    size_t linecount = 0, animationCount = 0;
+    auto pos = std::string::npos;
+    for (std::string line; std::getline(infile, line); ++linecount)
+    {
+      // Skip empty lines, lines that only contain whitespaces and comment lines
+      if (!line.size()) continue;
+      if ((pos = line.find_first_not_of(" \t")) == std::string::npos) continue;
+      if (line[pos] == '#' || line[pos] == ';') continue;
+
+      if (!parseAnimationLine(line.substr(pos), errormsg, list, true))
+      {
+        parseError( std::string("FileReader: ") + "'" + animationData + "' line "
+                    + std::to_string(linecount) + ": " + errormsg, errormsg);
+        return false;
+      } else {
+        ++animationCount;
+      }
+    }
+    return true;
+  }
+
+} // end anonymous namespace
