@@ -18,6 +18,8 @@ Pavel Belikov is used for argumen t parsing.
 * `moodycamel::ConcurrentQueue` (https://github.com/cameron314/concurrentqueue)
   by Cameron Desrochers is used.
 
+* And of course `HID API` (https://github.com/signal11/hidapi).
+
 ## Building
 **Requirements**
 * C++14 compiler (if gcc, then version 5 or higher)
@@ -58,3 +60,12 @@ you need to give yourself write acces to this device.
 ## Other
 
 * See Dream Cheeky Hardware Developer Manual: https://file.io/Decd6c
+
+
+## Roadmap/Ideas
+
+* More animation types
+* Support piping
+* Support pixmaps in animations
+* dcled-server: running as a daemon, offering a REST API?
+* Maybe: Support Microsoft Windows builds
