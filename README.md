@@ -13,7 +13,7 @@ Ubuntu (and OpenSuse) systems, it became kind of a toy project of mine for C++ a
 ## Third party
 
 * `args` (https://github.com/Taywee/args) by Taylor C. Richberger <taywee@gmx.com> and
-Pavel Belikov is used for argument parsing.
+Pavel Belikov is used for argumen t parsing.
 
 * `moodycamel::ConcurrentQueue` (https://github.com/cameron314/concurrentqueue)
   by Cameron Desrochers is used.
@@ -24,6 +24,7 @@ Pavel Belikov is used for argument parsing.
 * CMake 3.8 or later
 
 ** How to build:**
+
       > git clone https://github.com/jahnf/dcled-hidapi
       > cd dcled-hidapi
       > mkdir build && cd build
@@ -53,7 +54,3 @@ you need to give yourself write acces to this device.
   and `sudo udevadm trigger` to load rules without rebooting.
 
 *(Tested on Ubuntu 16.04 and 18.04)*
-
-## Other
-
-* See https://file.io/Decd6c for the Dream Cheeky Developer manual for the LED Board.
