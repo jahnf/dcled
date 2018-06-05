@@ -1,2 +1,14 @@
-# Set up permissions for root-free dcled message board
-ATTRS{idVendor}=="1d34", ATTRS{idProduct}=="0013", MODE="660",GROUP="plugdev"
+# Set up permissions for non root users to the dcled message board
+
+# Copy this file to /etc/udev/rules.d/40-dcled.rules
+# Run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
+# to load rules without rebooting.
+
+# Note that for kernels before 2.6.24, you will need to substitute "usb" with "usb_device".
+
+# HIDAPI/libusb
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1d34", ATTRS{idProduct}=="0013", MODE="660",GROUP="plugdev"
+
+# HIDAPI/hidraw
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d34", ATTRS{idProduct}=="0013", MODE="0660", GROUP="plugdev"
+
