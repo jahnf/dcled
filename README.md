@@ -23,7 +23,7 @@ Pavel Belikov is used for argumen t parsing.
 * C++14 compiler (if gcc, then version 5 or higher)
 * CMake 3.8 or later
 
-** How to build:**
+**How to build:**
 
       > git clone https://github.com/jahnf/dcled-hidapi
       > cd dcled-hidapi
