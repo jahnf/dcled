@@ -1,3 +1,7 @@
+// dcled-hidapi - userland driver for the Dream Cheeky LED Message Board
+// Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
+// Distributed under the MIT License. See accompanying LICENSE file.
+
 #ifndef DCLED_SCREEN_H
 #define DCLED_SCREEN_H
 

@@ -1,9 +1,14 @@
+// dcled-hidapi - userland driver for the Dream Cheeky LED Message Board
+// Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
+// Distributed under the MIT License. See accompanying LICENSE file.
+
 #include "dcled-cli.h"
 
 #include "animations.h"
 #include "output.h"
 
 #include <args/args.hxx>
+#include <dcled-GitVersion.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -133,9 +138,19 @@ namespace dcled { namespace cli // *********************************************
     catch (args::Help flag)
     {
       if (flag.what() == std::string("version"))
-        print() << "TODO: Build in version information (auto generated via CMake & git)";
-      else
+      {
+        print() << dcled::version_string();
+        if (std::strcmp( dcled::version_branch(), "master"))
+        { // Not a build from master, put out extra information:
+          print() << "  - git-branch: " << dcled::version_branch();
+          print() << "  - git-hash: " << dcled::version_fullhash();
+        }
+        // Show if we have a build from modified sources
+        if (dcled::version_isdirty()) print() << "  - dirty-flag: " << dcled::version_isdirty();
+      }
+      else {
         std::cout << parser;
+      }
       return State::EXIT;
     }
     catch (args::ParseError e)

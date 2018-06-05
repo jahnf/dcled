@@ -1,3 +1,7 @@
+// dcled-hidapi - userland driver for the Dream Cheeky LED Message Board
+// Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
+// Distributed under the MIT License. See accompanying LICENSE file.
+
 #include "device.h"
 
 #include "animations.h"
@@ -18,7 +22,6 @@
 // Linux only, TODO Windows alternative for isatty...
 #include <unistd.h>
 
-#include "moodycamel/blockingconcurrentqueue.h"
 #include "moodycamel/concurrentqueue.h"
 
 HidApi::HidApi() : res(hid_init()) {}

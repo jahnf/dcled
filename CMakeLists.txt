@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(dcled-hidapi CXX)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+include(GitVersion)
+
 option(BUILD_WITH_HIDAPI_LIBUSB "Build dcled-hidapi with hidapi-libusb" ON)
 option(BUILD_WITH_HIDAPI_RAW "Build dcled-hidapi with hidapi-raw" OFF)
 
@@ -57,14 +60,13 @@ if(BUILD_WITH_HIDAPI_LIBUSB)
   add_executable(dcled dcled-main.cc dcled-cli.cc dcled-cli.h args/args.hxx)
   target_link_libraries(dcled dcledlib hidapi-libusb pthread)
   target_include_directories(dcled PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-  set_property(TARGET dcled PROPERTY CXX_STANDARD 14)
+  add_version_info(dcled "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 if(BUILD_WITH_HIDAPI_RAW)
-  add_executable(dcled-hidapi-raw dcled-main.cc dcled-cli.cc dcled-cli.h args/args.hxx)
+  add_executable(dcled-raw dcled-main.cc dcled-cli.cc dcled-cli.h args/args.hxx)
   target_link_libraries(dcled-raw dcledlib hidapi-hidraw pthread)
   target_include_directories(dcled-raw PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-  set_property(TARGET dcled-raw PROPERTY CXX_STANDARD 14)
 endif()
 
 add_custom_target(non-sources SOURCES README.md 40-dcled.rules)
