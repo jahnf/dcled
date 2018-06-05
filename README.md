@@ -59,8 +59,7 @@ you need to give yourself write acces to this device.
 
 ## Other
 
-* See Dream Cheeky Hardware Developer Manual: https://file.io/Decd6c
-
+* See Jeff Jahr's original page: https://www.last-outpost.com/~malakai/dcled/
 
 ## Roadmap/Ideas
 
