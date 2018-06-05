@@ -54,3 +54,7 @@ you need to give yourself write acces to this device.
   and `sudo udevadm trigger` to load rules without rebooting.
 
 *(Tested on Ubuntu 16.04 and 18.04)*
+
+## Other
+
+* See Dream Cheeky Hardware Developer Manual: https://file.io/Decd6c
