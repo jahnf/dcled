@@ -24,7 +24,7 @@
 set(VERSION_TAG_PREFIX v)     # Should be the same as configured in git-flow
 set(VERSION_ALPHA_FLAG alpha) # Pre-release identifier for all builds besides release and hotfix branches
 set(VERSION_RC_FLAG rc)       # Pre-release identifier for all builds from release and hotfix branches
-set(VERSION_RC_START_TAG_PREFIX rc-) # If available tags with the given prefix are used for distance calculation on release branches.
+set(VERSION_RC_START_TAG_PREFIX "rc-") # If available tags with the given prefix are used for distance calculation on release branches.
 set(RC_BRANCH_PREFIX release) # e.g. release/0.2
 set(HOTFIX_BRANCH_PREFIX hotfix) # e.g. hotfix/2.0.3
 
@@ -161,6 +161,8 @@ function(get_version_info prefix directory)
           if(GIT_RC_TAG_VERSION MATCHES "^${VERSION_RC_START_TAG_PREFIX}?([0-9]+)\\.([0-9]+)(\\.([0-9]+))?(-([0-9]+))?.*$")
             if(NOT ${CMAKE_MATCH_6} STREQUAL "")
               set(${prefix}_VERSION_DISTANCE ${CMAKE_MATCH_6})
+            else()
+              set(${prefix}_VERSION_DISTANCE 0)
             endif()
           endif()
         endif()
@@ -262,16 +264,13 @@ function(get_version_info prefix directory)
     endif()
 
     if(resultSH EQUAL 0 AND resultFH EQUAL 0)
+      message(STATUS "Version info for '${prefix}': ${VERSION_STRING}")
       set(${prefix}_VERSION_SUCCESS 1 PARENT_SCOPE)
     endif()
   else()
     message(WARNING "Git not found. Incomplete version information.")
   endif()
 endfunction()
-
-# if(NOT TARGET update_versions)
-#   add_custom_target(update_versions)
-# endif()
 
 # Add version information to a target, header and source file are configured from templates.
 #  (GitVersion.h.in and GitVersion.cc.in if no other templates are defined)
