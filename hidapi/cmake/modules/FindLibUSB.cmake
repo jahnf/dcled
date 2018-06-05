@@ -1,3 +1,5 @@
+# An adjusted version from: https://github.com/IntelRealSense/librealsense/tree/master/CMake
+
 # - Find libusb for portable USB support
 # This module will find libusb as published by
 #  http://libusb.sf.net and

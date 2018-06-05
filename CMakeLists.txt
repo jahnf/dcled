@@ -69,4 +69,4 @@ if(BUILD_WITH_HIDAPI_RAW)
   target_include_directories(dcled-raw PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
-add_custom_target(non-sources SOURCES README.md 40-dcled.rules)
+add_custom_target(non-sources SOURCES README.md LICENSE 40-dcled.rules)
