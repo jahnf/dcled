@@ -8,8 +8,9 @@ project(dcled-hidapi CXX)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
 
-option(BUILD_WITH_HIDAPI_LIBUSB "Build dcled-hidapi with hidapi-libusb" ON)
-option(BUILD_WITH_HIDAPI_RAW "Build dcled-hidapi with hidapi-raw" OFF)
+option(BUILD_DCLED_HIDAPI_LIBUSB "Build dcled-hidapi with hidapi-libusb" ON)
+option(BUILD_DCLED_HIDAPI_RAW "Build dcled-hidapi with hidapi-raw" OFF)
+option(BUILD_DCLED_WITHOUT_HIDAPI "Build dcled without hidapi/usb bindings" OFF)
 
 try_compile(HAVE_CODECVT
   "${CMAKE_BINARY_DIR}/compile-tests"
@@ -44,9 +45,11 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   add_definitions(-D__STRICT_ANSI__)
 endif()
 
-add_subdirectory(hidapi)
+if(BUILD_DCLED_HIDAPI_LIBUSB OR BUILD_DCLED_HIDAPI_RAW)
+  add_subdirectory(hidapi)
+endif()
 
-add_library(dcledlib STATIC EXCLUDE_FROM_ALL
+set(dcledlib_SOURCES
   animations.cc animations.h
   device.cc device.h
   fonts.cc fonts.h
@@ -54,19 +57,37 @@ add_library(dcledlib STATIC EXCLUDE_FROM_ALL
   screen.cc screen.h
   moodycamel/concurrentqueue.h
 )
-target_include_directories(dcledlib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} PRIVATE hidapi)
 
-if(BUILD_WITH_HIDAPI_LIBUSB)
+if(BUILD_DCLED_HIDAPI_LIBUSB OR BUILD_DCLED_HIDAPI_RAW)
+  add_library(dcledlib STATIC EXCLUDE_FROM_ALL ${dcledlib_SOURCES})
+  target_include_directories(dcledlib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} PRIVATE hidapi)
+endif()
+
+if(BUILD_DCLED_HIDAPI_LIBUSB)
   add_executable(dcled dcled-main.cc dcled-cli.cc dcled-cli.h args/args.hxx)
   target_link_libraries(dcled dcledlib hidapi-libusb pthread)
   target_include_directories(dcled PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   add_version_info(dcled "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
-if(BUILD_WITH_HIDAPI_RAW)
+# For Ubuntu/Debian systems `libudev-dev` pkg is required to build HIDAPI_RAW version.
+if(BUILD_DCLED_HIDAPI_RAW)
   add_executable(dcled-raw dcled-main.cc dcled-cli.cc dcled-cli.h args/args.hxx)
   target_link_libraries(dcled-raw dcledlib hidapi-hidraw pthread)
   target_include_directories(dcled-raw PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  add_version_info_custom_prefix(dcled-raw dcled "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
+
+if(BUILD_DCLED_WITHOUT_HIDAPI)
+  add_library(dcledlib-nohidapi STATIC EXCLUDE_FROM_ALL ${dcledlib_SOURCES})
+  target_include_directories(dcledlib-nohidapi PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+  target_compile_definitions( dcledlib-nohidapi PUBLIC WITHOUT_HIDAPI)
+  add_executable(dcled-nohidapi dcled-main.cc dcled-cli.cc dcled-cli.h args/args.hxx)
+  target_link_libraries(dcled-nohidapi dcledlib-nohidapi pthread)
+  target_include_directories(dcled-nohidapi PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  add_version_info_custom_prefix(dcled-nohidapi dcled "${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
+
 
 add_custom_target(non-sources SOURCES README.md LICENSE 40-dcled.rules)

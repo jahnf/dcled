@@ -105,11 +105,15 @@ namespace dcled { namespace cli // *********************************************
     args::HelpFlag help_arg(parser, "help", "Display this help menu", {'h', "help"});
     args::HelpFlag version_arg(parser, "version", "Display the program version", {"version"});
     args::Flag list_arg(parser, "list", "List all dcled devices", {'l', "list"});
+#ifndef WITHOUT_HIDAPI
     args::ValueFlag<std::string> path_arg(parser, "path", "USB device path", {'p', "path"});
     args::Flag stdout_arg(parser, "stdout", "Print device screen to stdout", {'s', "stdout"});
     args::Flag virtual_dev_arg(parser, "virtual", "Use only virtual stdout device\n"
                                                   "(includes --stdout)", {'v', "virtual"});
-
+#else
+    static bool virtual_dev_arg = true;
+    static bool stdout_arg = true;
+#endif
     args::Base emptyLine(""); parser.Add( emptyLine );
     args::PositionalList<std::string, std::list, AnimationReader<&Animation_List_>>
             animations(parser, "ANIMATION", "List of animations with the format:\n" "[Type][,Arg:Value...][=Data]");
@@ -209,9 +213,11 @@ namespace dcled { namespace cli // *********************************************
       virtual_ = true;
       path_ = std::string(dcled::Device::EMULATED_DEV_PATH);
     }
+#ifndef WITHOUT_HIDAPI
     else if (path_arg) {
       path_ = path_arg.Get();
     }
+#endif
 
     return State::OK;
   }

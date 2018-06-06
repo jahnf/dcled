@@ -7,6 +7,7 @@
 
 #include <list>
 #include <memory>
+#include <type_traits>
 
 class HidApi {
 public:
@@ -46,7 +47,8 @@ namespace dcled
     /// Creates a device instance that opens the first dlced device found.
     Device(bool toStdout = false);
     /// Creates a device instance and tries to open the device via \a device_path.
-    Device(const std::string& device_path, bool toStdout = false);
+    Device(const char* device_path, bool toStdout = false);
+    Device(std::string device_path, bool toStdout = false);
 
     Device(Device&& other);
     ~Device();
@@ -66,29 +68,31 @@ namespace dcled
     /// Send the current screen to the device manually.
     void update();
 
-    template<typename AnimType> void enqueue(const AnimType& a) {
-      static_assert(std::is_base_of<Animation, AnimType>::value,
-                    "AnimType must derive from Animation");
+    template<typename AnimType,
+             typename = std::enable_if_t<std::is_base_of<Animation, AnimType>::value>>
+    void enqueue(const AnimType& a) {
       enqueue_ptr(std::make_unique<AnimType>(a));
     }
 
-    template<typename AnimType> void enqueue(const AnimType&& a) {
-      static_assert(std::is_base_of<Animation, AnimType>::value,
-                    "AnimType must derive from Animation");
-      enqueue(std::make_unique<AnimType>(std::move(a)));
+    template<typename AnimType,
+             typename = std::enable_if_t<std::is_base_of<Animation, AnimType>::value>>
+    void enqueue(const AnimType&& a) {
+
+      enqueue_ptr(std::make_unique<AnimType>(std::move(a)));
+//      enqueue_ptr(std::make_unique<AnimType>(std::forward<AnimType>(a)));
     }
 
     /// Takes ownership of the enqueued animation.
-    template<typename AnimType> void enqueue(AnimType* a) {
-      static_assert(std::is_base_of<Animation, AnimType>::value,
-                    "AnimType must derive from Animation");
-      enqueue(std::unique_ptr<AnimType>(a));
+    template<typename AnimType,
+             typename = std::enable_if_t<std::is_base_of<Animation, AnimType>::value>>
+    void enqueue(AnimType* a) {
+      enqueue_ptr(std::unique_ptr<AnimType>(a));
     }
 
-    template<typename AnimType> void enqueue(std::unique_ptr<AnimType> a) {
-      static_assert(std::is_base_of<Animation, AnimType>::value,
-                    "AnimType must derive from Animation");
-      enqueue_ptr(std::move(a));
+    template<typename AnimType,
+             typename = std::enable_if_t<std::is_base_of<Animation, AnimType>::value>>
+    void enqueue(std::unique_ptr<AnimType> a) {
+      enqueue_ptr(std::forward<decltype(a)>(a));
     }
 
     /// Play all animations in the queue.
