@@ -77,9 +77,7 @@ namespace dcled
     template<typename AnimType,
              typename = std::enable_if_t<std::is_base_of<Animation, AnimType>::value>>
     void enqueue(const AnimType&& a) {
-
       enqueue_ptr(std::make_unique<AnimType>(std::move(a)));
-//      enqueue_ptr(std::make_unique<AnimType>(std::forward<AnimType>(a)));
     }
 
     /// Takes ownership of the enqueued animation.

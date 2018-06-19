@@ -39,6 +39,16 @@ namespace // *****************************************************************
                            std::string& errormsg, dcled::AnimationList* list,
                            bool forceNoParseErrorException = false);
 
+  bool make_InvertAnimation(const std::vector<std::string>& animationArgs,
+                            const std::string& animationData,
+                            std::string& errormsg, dcled::AnimationList* list,
+                            bool forceNoParseErrorException = false);
+
+  bool make_FlipAnimation(const std::vector<std::string>& animationArgs,
+                          const std::string& animationData,
+                          std::string& errormsg, dcled::AnimationList* list,
+                          bool forceNoParseErrorException = false);
+
   bool anim_FileReader(const std::vector<std::string>& animationArgs,
                        const std::string& animationData,
                        std::string& errormsg, dcled::AnimationList* list,
@@ -56,15 +66,15 @@ namespace // *****************************************************************
   };
 
   // Animation type -> parser function array
-  constexpr std::array<TypeEntry, 3> animationTypes = {{
-    {'t', make_TextAnimation}, {'f', anim_FileReader}, {'c', make_ClockAnimation}
+  constexpr std::array<TypeEntry, 5> animationTypes = {{
+    {'t', make_TextAnimation}, {'f', anim_FileReader}, {'c', make_ClockAnimation},
+    {'I', make_InvertAnimation}, {'F', make_FlipAnimation}
   }};
 
   // AnimationReader - custom parsing for args::ArgumentParser
   template<dcled::AnimationList* List>
   struct AnimationReader {
-    void operator()(const std::string& name, const std::string& value, std::string& errormsg)
-    {
+    void operator()(const std::string& name, const std::string& value, std::string& errormsg) {
       parseAnimationLine(value, errormsg, List);
     }
   };
@@ -103,6 +113,7 @@ namespace dcled { namespace cli // *********************************************
     args::ArgumentParser parser("Dream Cheeky LED Message Board driver.");
     args::CompletionFlag c(parser, {"complete"});
     args::HelpFlag help_arg(parser, "help", "Display this help menu", {'h', "help"});
+    args::HelpFlag example_arg(parser, "example", "Display detailed examples", {'e', "examples"});
     args::HelpFlag version_arg(parser, "version", "Display the program version", {"version"});
     args::Flag list_arg(parser, "list", "List all dcled devices", {'l', "list"});
 #ifndef WITHOUT_HIDAPI
@@ -114,26 +125,35 @@ namespace dcled { namespace cli // *********************************************
     static bool virtual_dev_arg = true;
     static bool stdout_arg = true;
 #endif
-    args::Base emptyLine(""); parser.Add( emptyLine );
+    args::Base emptyLine("");
+    parser.Add(emptyLine);
     args::PositionalList<std::string, std::list, AnimationReader<&Animation_List_>>
             animations(parser, "ANIMATION", "List of animations with the format:\n" "[Type][,Arg:Value...][=Data]");
-    parser.Add( emptyLine );
 
-    args::NamedBase text0("f : Read from File","Read animation list from file\n"
-                                              "  Data (required) : File path" );
-    parser.Add( text0 ); parser.Add( emptyLine );
+    std::vector<args::NamedBase> animDescriptions = {
+      args::NamedBase("f : Read from File","Read animation list from file\n"
+                                           "  Data (required) : File path" ),
+      args::NamedBase("t : TextAnimation","Scrolling text\n"
+                                          "  Optional Arguments:\n"
+                                          "   - ScrollSpeed 's' : ms (default=100)\n"
+                                          "  Data (required) : Scroll text"),
+      args::NamedBase("c : ClockAnimation","Show the current time\n"
+                                            "  Optional Arguments:\n"
+                                            "   - Duration 'd' : seconds (default=30)\n"
+                                            "   - ColonBlink 'b' : 0 or 1 (default=1)\n"
+                                            "   - Format 'f' : 12 or 24 (default=24)"),
+      args::NamedBase("I : InvertAnimation","Invert nested animation(s)\n"
+                                            "  Required Data: ANIMATION"),
+      args::NamedBase("F : FlipAnimation","Flip nested animation(s)\n"
+                                          "  Optional Arguments:\n"
+                                          "   - Direction 'd' : h or v (default=h)\n"
+                                          "  Required Data: ANIMATION")
+    };
 
-    args::NamedBase text1("t : TextAnimation","Scrolling text\n"
-                                              "  Optional Arguments:\n"
-                                              "   - ScrollSpeed 's' : ms (default=100)\n"
-                                              "  Data (required) : Scroll text" );
-    parser.Add( text1 );
-    args::NamedBase text2("c : ClockAnimation","Show the current time\n"
-                                              "  Optional Arguments:\n"
-                                              "   - Duration 'd' : seconds (default=30)\n"
-                                              "   - ColonBlink 'b' : 0 or 1 (default=1)\n"
-                                              "   - Format 'f' : 12 or 24 (default=24)" );
-    parser.Add( text2 );
+    for (auto& d : animDescriptions) {
+      parser.Add(emptyLine);
+      parser.Add(d);
+    }
 
     try
     {
@@ -285,6 +305,85 @@ namespace // *****************************************************************
     errormsg = std::move(msg);
   }
 
+  bool make_InvertAnimation(const std::vector<std::string>& animationArgs,
+                            const std::string& animationData,
+                            std::string& errormsg, dcled::AnimationList* list,
+                            bool forceNoParseErrorException)
+  {
+    if (!animationData.size()) {
+      parseError("InvertAnimation: Empty data.", errormsg, forceNoParseErrorException);
+      return false;
+    }
+
+    dcled::AnimationList nestedList;
+    if (!parseAnimationLine(animationData, errormsg, &nestedList, true))
+    {
+      parseError( std::string("InvertAnimation: ") + "'" + animationData + "': " + errormsg, errormsg);
+      return false;
+    }
+    else
+    {
+      for (auto& a : nestedList) {
+        list->emplace_back(std::make_unique<dcled::InvertAnimation>(std::move(a)));
+      }
+    }
+    return true;
+  }
+
+  bool make_FlipAnimation(const std::vector<std::string>& animationArgs,
+                          const std::string& animationData,
+                          std::string& errormsg, dcled::AnimationList* list,
+                          bool forceNoParseErrorException)
+  {
+    if (!animationData.size()) {
+      parseError("FlipAnimation: Empty data.", errormsg, forceNoParseErrorException);
+      return false;
+    }
+
+    dcled::Screen::Flip flip_direction = dcled::Screen::Flip::Horizontal;
+    // first argument is always animation character itself.
+    if (animationArgs.size() > 1) {
+      for (auto it = ++animationArgs.cbegin(), end = animationArgs.cend(); it != end; ++it)
+      {
+        const auto arg = split_first_one(*it, ":", true);
+        if (arg.size() < 2) {
+          parseError(std::string("FlipAnimation: Argument '")
+                                  + (arg.size() ? arg[0] : "")
+                                  + "' without value.", errormsg, forceNoParseErrorException);
+          return false;
+        }
+        if (arg[0] == "d") {
+          if( arg[1].size() != 1 || !(arg[1][0] == 'h' || arg[1][0] == 'v') ) {
+            parseError(std::string("FlipAnimation: Invalid value for argument '")
+                                    + arg[0] + "'.", errormsg, forceNoParseErrorException);
+            return false;
+          }
+          if (arg[1][0] == 'v')
+            flip_direction = dcled::Screen::Flip::Vertical;
+        }
+        else {
+          parseError(std::string("FlipAnimation: Unknown argument '") + arg[0] + "'.",
+                     errormsg, forceNoParseErrorException);
+          return false;
+        }
+      }
+    }
+
+    dcled::AnimationList nestedList;
+    if (!parseAnimationLine(animationData, errormsg, &nestedList, true))
+    {
+      parseError( std::string("FlipAnimation: ") + "'" + animationData + "': " + errormsg, errormsg);
+      return false;
+    }
+    else
+    {
+      for (auto& a : nestedList) {
+        list->emplace_back(std::make_unique<dcled::FlipAnimation>(std::move(a), flip_direction));
+      }
+    }
+    return true;
+  }
+
   // Try to create and append a ClockAnimation with the given arguments
   bool make_ClockAnimation(const std::vector<std::string>& animationArgs,
                            const std::string& animationData,
@@ -339,7 +438,8 @@ namespace // *****************************************************************
         }
       }
     }
-    list->push_back(std::make_unique<dcled::ClockAnimation>(display_time_s, blinking_colon, mode));
+    list->emplace_back(std::make_unique<dcled::ClockAnimation>(display_time_s, blinking_colon, mode));
+    return true;
   }
 
   // Try to create and append TextAnimation to the list with the given arguments and data
@@ -379,7 +479,7 @@ namespace // *****************************************************************
         }
       }
     }
-    list->push_back(std::make_unique<dcled::TextAnimation>(animationData, scrollspeed));
+    list->emplace_back(std::make_unique<dcled::TextAnimation>(animationData, scrollspeed));
     return true;
   }
 

@@ -26,19 +26,49 @@ namespace dcled {
     virtual void reset() = 0;
   };
 
-  // TODO : blinking animation of last screen with given interval and count
-  class BlinkingAnimation : public Animation
+  class NestedAnimation : public Animation
   {
   public:
-    BlinkingAnimation(uint32_t interval_ms, uint32_t count = 1);
-    virtual ~BlinkingAnimation() = default;
-    virtual uint32_t step(Screen&) override;
-    virtual void reset() override { counter_ = 10; }
+    NestedAnimation(std::unique_ptr<Animation> a) : animation_(std::move(a)) {}
+    virtual ~NestedAnimation() = default;
+    virtual uint32_t step(Screen& s);
+    virtual void reset() override;
   private:
     Screen s_;
-    int counter_ = 10;
+    std::unique_ptr<Animation> animation_;
+    bool first_step_ = true;
   };
 
+  class InvertAnimation : public NestedAnimation
+  {
+  public:
+    InvertAnimation(std::unique_ptr<Animation> a) : NestedAnimation(std::move(a)) {}
+    virtual ~InvertAnimation() = default;
+    virtual uint32_t step(Screen& s) override
+    {
+      const auto step_ms = NestedAnimation::step(s);
+      if (step_ms) s.invert();
+      return step_ms;
+    }
+  };
+
+  class FlipAnimation : public NestedAnimation
+  {
+  public:
+    FlipAnimation(std::unique_ptr<Animation> a, Screen::Flip direction = Screen::Flip::Horizontal)
+    : NestedAnimation(std::move(a)), flip_direction_(direction) {}
+    virtual ~FlipAnimation() = default;
+    virtual uint32_t step(Screen& s) override
+    {
+      const auto step_ms = NestedAnimation::step(s);
+      if (step_ms) s.flip(flip_direction_);
+      return step_ms;
+    }
+  private:
+    const Screen::Flip flip_direction_ = Screen::Flip::Horizontal;
+  };
+
+  /// Shows a digital clock in either 24 or 12 hour format, for a given time or forever.
   class ClockAnimation : public Animation
   {
   public:
@@ -69,7 +99,7 @@ namespace dcled {
     bool done_ = false;
   };
 
-  //namespace font{ struct Font; }
+  /// Scrolling test animation with a given text, scrollspeed and font.
   class TextAnimation : public Animation
   {
   public:

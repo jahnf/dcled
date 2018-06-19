@@ -41,6 +41,23 @@ namespace dcled {
     }
   }
 
+  uint32_t NestedAnimation::step(Screen& s)
+  {
+    if (first_step_) {
+      first_step_ = false;
+      s_ = s;
+    }
+    const auto step_ms = animation_->step(s_);
+    s = s_;
+    return step_ms;
+  }
+
+  void NestedAnimation::reset()
+  {
+    first_step_ = true;
+    animation_->reset();
+  }
+
   ClockAnimation::ClockAnimation(uint32_t display_time_s, bool blinking_colon, Mode mode)
     : display_time_s_(display_time_s), time_left_ms_(display_time_s*1000),
       blinking_colon_(blinking_colon), mode_(mode) {}
@@ -53,7 +70,11 @@ namespace dcled {
   {
     const auto t = std::time(nullptr);
     char clock_string[5] = "0000";
-    std::strftime(clock_string, sizeof(clock_string), "%H%M", std::localtime(&t));
+    if (mode_==Mode::H12) {
+      std::strftime(clock_string, sizeof(clock_string), "%I%M", std::localtime(&t));
+    } else {
+      std::strftime(clock_string, sizeof(clock_string), "%H%M", std::localtime(&t));
+    }
     printchar(screen, font::Default, clock_string[0], 0, 0, false);
     printchar(screen, font::Default, clock_string[1], 5, 0, false);
     screen.set(10, 2, colon_show_state_).set(10, 4, colon_show_state_);
@@ -119,14 +140,3 @@ namespace dcled {
     return 0;
   }
 }
-
-uint32_t dcled::BlinkingAnimation::step(Screen& screen)
-{
-  if( counter_ <= 0 )
-    return 0;
-
-  screen.setAll( (--counter_)%2 );
-  return 150;
-}
-
-
