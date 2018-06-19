@@ -19,6 +19,7 @@ namespace dcled
 
     enum class Brightness : uint8_t { Low = 0, Mid = 1, High = 2 };
     enum class Direction : uint8_t { Left, Right, Up, Down };
+    enum class Flip : uint8_t { Horizontal, Vertical };
 
     constexpr Screen(): msgs_{LedMsg(0), LedMsg(2), LedMsg(4), LedMsg(6)} {}
     Screen(const PixMap& pixmap, uint32_t x_offset = 0, uint32_t y_offset = 0);
@@ -34,7 +35,8 @@ namespace dcled
     Screen& operator^(const Screen& other);
 
     Screen& invert();
-    Screen& shift(Direction dir);
+    Screen& flip(Flip direction);
+    Screen& shift(Direction dir, uint8_t num = 1);
     Screen& setBrightness(Brightness brightness);
     Screen& setAll(bool on);
     Screen& setRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool on);

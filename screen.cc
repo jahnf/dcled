@@ -12,6 +12,14 @@ namespace {
     uint8_t c[4];
     uint32_t i;
   };
+
+  constexpr uint8_t BitReverseTable256[256] =
+  {
+    #define R2(n)     n,     n + 2*64,     n + 1*64,     n + 3*64
+    #define R4(n) R2(n), R2(n + 2*16), R2(n + 1*16), R2(n + 3*16)
+    #define R6(n) R4(n), R4(n + 2*4 ), R4(n + 1*4 ), R4(n + 3*4 )
+    R6(0), R6(2), R6(1), R6(3)
+  };
 }
 
 void dcled::Screen::print(bool ttyColored) const
@@ -88,8 +96,9 @@ dcled::Screen& dcled::Screen::setRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h
   if (!(y < HEIGHT && x < WIDTH))
     return *this;
 
-  for (w += x, h += y; x < w && y < h; ++x, ++y)
-    set(x, y, on);
+  for (h += y, w += x; y < h; ++y)
+    for (auto x2 = x; x2 < w; ++x2)
+      set(x2, y, on);
 
   return *this;
 }
@@ -121,60 +130,87 @@ dcled::Screen& dcled::Screen::operator^(const Screen& other)
   return *this;
 }
 
-dcled::Screen& dcled::Screen::shift(Direction dir)
+dcled::Screen& dcled::Screen::shift(Direction dir, uint8_t num)
 {
-  switch(dir) {
-  case Direction::Up:
-    for (int i=0; i<4; ++i) {
-      msgs_[i].data[0][0] = msgs_[i].data[1][0];
-      msgs_[i].data[0][1] = msgs_[i].data[1][1];
-      msgs_[i].data[0][2] = msgs_[i].data[1][2];
-      if (i<3) {
-        msgs_[i].data[1][0] = msgs_[i+1].data[0][0];
-        msgs_[i].data[1][1] = msgs_[i+1].data[0][1];
-        msgs_[i].data[1][2] = msgs_[i+1].data[0][2];
+  for( ; num > 0; --num) {
+    switch(dir) {
+    case Direction::Up:
+      for (int i=0; i<4; ++i) {
+        msgs_[i].data[0][0] = msgs_[i].data[1][0];
+        msgs_[i].data[0][1] = msgs_[i].data[1][1];
+        msgs_[i].data[0][2] = msgs_[i].data[1][2];
+        if (i<3) {
+          msgs_[i].data[1][0] = msgs_[i+1].data[0][0];
+          msgs_[i].data[1][1] = msgs_[i+1].data[0][1];
+          msgs_[i].data[1][2] = msgs_[i+1].data[0][2];
+        }
       }
-    }
-    msgs_[3].data[0][0] = msgs_[3].data[0][1] = msgs_[3].data[0][2] = 0xFF;
-    break;
-  case Direction::Down:
-    for (int i=3; i>=0; --i) {
-      msgs_[i].data[1][0] = msgs_[i].data[0][0];
-      msgs_[i].data[1][1] = msgs_[i].data[0][1];
-      msgs_[i].data[1][2] = msgs_[i].data[0][2];
-      if (i>0) {
-        msgs_[i].data[0][0] = msgs_[i-1].data[1][0];
-        msgs_[i].data[0][1] = msgs_[i-1].data[1][1];
-        msgs_[i].data[0][2] = msgs_[i-1].data[1][2];
+      msgs_[3].data[0][0] = msgs_[3].data[0][1] = msgs_[3].data[0][2] = 0xFF;
+      break;
+    case Direction::Down:
+      for (int i=3; i>=0; --i) {
+        msgs_[i].data[1][0] = msgs_[i].data[0][0];
+        msgs_[i].data[1][1] = msgs_[i].data[0][1];
+        msgs_[i].data[1][2] = msgs_[i].data[0][2];
+        if (i>0) {
+          msgs_[i].data[0][0] = msgs_[i-1].data[1][0];
+          msgs_[i].data[0][1] = msgs_[i-1].data[1][1];
+          msgs_[i].data[0][2] = msgs_[i-1].data[1][2];
+        }
       }
-    }
-    msgs_[0].data[0][0] = msgs_[0].data[0][1] = msgs_[0].data[0][2] = 0xFF;
-    break;
-  case Direction::Left:
-    for (int i=0; i<4; ++i) {
-      for (int j=0; j<2; ++j) {
-        msgs_[i].data[j][0] |= (5<<5);
-        BitShift t{ { msgs_[i].data[j][2], msgs_[i].data[j][1], msgs_[i].data[j][0], 0xFF} };
-        t.i >>= 1;
-        msgs_[i].data[j][2] = t.c[0];
-        msgs_[i].data[j][1] = t.c[1];
-        msgs_[i].data[j][0] = t.c[2];
+      msgs_[0].data[0][0] = msgs_[0].data[0][1] = msgs_[0].data[0][2] = 0xFF;
+      break;
+    case Direction::Left:
+      for (int i=0; i<4; ++i) {
+        for (int j=0; j<2; ++j) {
+          msgs_[i].data[j][0] |= (5<<5);
+          BitShift t{ { msgs_[i].data[j][2], msgs_[i].data[j][1], msgs_[i].data[j][0], 0xFF} };
+          t.i >>= 1;
+          msgs_[i].data[j][2] = t.c[0];
+          msgs_[i].data[j][1] = t.c[1];
+          msgs_[i].data[j][0] = t.c[2];
+        }
       }
-    }
-    break;
-  case Direction::Right:
-    for (int i=0; i<4; ++i) {
-      for (int j=0; j<2; ++j) {
-        BitShift t{ {0xFF, msgs_[i].data[j][2], msgs_[i].data[j][1], msgs_[i].data[j][0]} };
-        t.i <<= 1;
-        msgs_[i].data[j][2] = t.c[1];
-        msgs_[i].data[j][1] = t.c[2];
-        msgs_[i].data[j][0] = t.c[3];
+      break;
+    case Direction::Right:
+      for (int i=0; i<4; ++i) {
+        for (int j=0; j<2; ++j) {
+          BitShift t{ {0xFF, msgs_[i].data[j][2], msgs_[i].data[j][1], msgs_[i].data[j][0]} };
+          t.i <<= 1;
+          msgs_[i].data[j][2] = t.c[1];
+          msgs_[i].data[j][1] = t.c[2];
+          msgs_[i].data[j][0] = t.c[3];
+        }
       }
+      break;
     }
-    break;
   }
   return *this;
+}
+
+dcled::Screen& dcled::Screen::flip(Flip direction)
+{
+  switch(direction) {
+    case Flip::Horizontal:
+      for (int i=0; i<4; ++i) {
+        for (int j=0; j<2; ++j) {
+          msgs_[i].data[j][0] |= (5<<5);
+          BitShift t{ {  BitReverseTable256[msgs_[i].data[j][0]],
+                         BitReverseTable256[msgs_[i].data[j][1]],
+                         BitReverseTable256[msgs_[i].data[j][2]], 0xFF } };
+          t.i >>= 3;
+          msgs_[i].data[j][2] = t.c[0];
+          msgs_[i].data[j][1] = t.c[1];
+          msgs_[i].data[j][0] = t.c[2];
+        }
+      }
+      break;
+    case Flip::Vertical:
+      std::swap(msgs_[0].data[0], msgs_[3].data[0]);
+      std::swap(msgs_[0].data[1], msgs_[2].data[1]);
+      std::swap(msgs_[1].data[0], msgs_[2].data[0]);
+      break;
+  }
 }
 
 dcled::Screen& dcled::Screen::invert()
