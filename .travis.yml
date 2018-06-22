@@ -2,6 +2,7 @@ language: generic
 matrix:
   include:
     - os: linux
+      dist: trusty
       env: COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
       addons:
         apt:
@@ -13,6 +14,7 @@ matrix:
             - libusb-dev
             - libudev-dev
     - os: linux
+      dist: trusty
       env: COMPILER_NAME=gcc CXX=g++-6 CC=gcc-6
       addons:
         apt:
@@ -22,6 +24,7 @@ matrix:
             - libudev-dev
           sources: *sources
     - os: linux
+      dist: trusty
       env: COMPILER_NAME=gcc CXX=g++-7 CC=gcc-7
       addons:
         apt:
@@ -31,6 +34,7 @@ matrix:
             - libudev-dev
           sources: *sources
     - os: linux
+      dist: trusty
       env: COMPILER_NAME=clang CXX=clang++-3.8 CC=clang-3.8
       addons:
         apt:
