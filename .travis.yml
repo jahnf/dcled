@@ -1,0 +1,12 @@
+language: cpp
+
+sudo: false
+
+compiler:
+  - gcc
+  - clang
+
+script: 
+  - mkdir build && cd build 
+  - cmake .. -DBUILD_DCLED_HIDAPI_LIBUSB=1 -DBUILD_DCLED_HIDAPI_RAW=1 -DBUILD_DCLED_WITHOUT_HIDAPI=1
+  - make
