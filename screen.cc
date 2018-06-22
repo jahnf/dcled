@@ -2,8 +2,8 @@
 // Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
 // Distributed under the MIT License. See accompanying LICENSE file.
 
-#include "screen.h"
 #include "pixmap.h"
+#include "screen.h"
 
 #include <iostream>
 
@@ -28,22 +28,24 @@ void dcled::Screen::print(bool ttyColored) const
     std::cout << "|";
     for (uint8_t x = 0; x < Screen::WIDTH; ++x) {
       if (ttyColored)
-        std::cout << (get(x,y) ? "\x1b[1;37;41m*\033[0m" : "\x1b[90;40m.\033[0m" );
+        std::cout << (get(x,y) ? "\x1b[1;37;41m*\033[0m" : "\x1b[90;40m.\033[0m");
       else
-        std::cout << (get(x,y) ? "*" : "." );
+        std::cout << (get(x,y) ? "*" : ".");
     }
     std::cout << '|' << std::endl;
   }
 }
 
-dcled::Screen::Screen(const PixMap& pixmap, uint32_t x, uint32_t y)
+dcled::Screen::Screen(const PixMap& pixmap, uint32_t x_offset, uint32_t y)
   : Screen()
 {
-  const auto x_max = std::min(x + Screen::WIDTH, x);
-  const auto y_max = std::min(y + Screen::HEIGHT, y);
-  for (auto screen_x = decltype(Screen::WIDTH){0}; x < x_max; ++x, ++screen_x) {
-    for (auto screen_y = decltype(Screen::HEIGHT){0}; y < y_max; ++y, ++screen_y) {
-      set(screen_x, screen_y, pixmap.at(x,y));
+  const auto x_max = std::min(x_offset + Screen::WIDTH, pixmap.width());
+  const auto y_max = std::min(y + Screen::HEIGHT, pixmap.height());
+  for (auto screen_y = decltype(Screen::HEIGHT){0}; y < y_max; ++y, ++screen_y) {
+    auto x = x_offset;
+    for (auto screen_x = decltype(Screen::WIDTH){0}; x < x_max; ++x, ++screen_x) {
+      const auto c = pixmap.at(x,y);
+      set(screen_x, screen_y, (c > 32 && c < 127) ? true : false);
     }
   }
 }

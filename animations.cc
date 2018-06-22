@@ -5,24 +5,10 @@
 #include "animations.h"
 
 #include "fonts.h"
+#include "output.h"
 #include "screen.h"
 
 #include <ctime>
-#include <iostream>
-namespace {
-  struct print
-  {
-    template<typename T>
-    auto& operator<<(const T& a) const { return std::cout << a; }
-    ~print() { std::cout << std::endl; }
-  };
-  struct error
-  {
-    template<typename T>
-    auto& operator<<(const T& a) const { return std::cerr << a; }
-    ~error() { std::cerr << std::endl; }
-  };
-}
 
 namespace dcled {
 
@@ -77,6 +63,7 @@ namespace dcled {
     }
     printchar(screen, font::Default, clock_string[0], 0, 0, false);
     printchar(screen, font::Default, clock_string[1], 5, 0, false);
+    screen.setRect(10, 0, 2, 7, false);
     screen.set(10, 2, colon_show_state_).set(10, 4, colon_show_state_);
     printchar(screen, font::Default, clock_string[2], 12, 0, false);
     printchar(screen, font::Default, clock_string[3], 17, 0, false);

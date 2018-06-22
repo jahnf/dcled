@@ -14,6 +14,7 @@
 #include <cerrno>
 #include <cstring>
 #include <fstream>
+#include <map>
 #include <vector>
 
 #define ANIMATIONREADER_THROWS 1
@@ -25,9 +26,19 @@ namespace // *****************************************************************
                                  bool skipEmpty = true, size_t maxSplits = 0);
   std::vector<std::string> split_first_one(const std::string& s, const std::string& delimiter = ",",
                                            bool skipEmpty = true);
+  template<typename Container, typename T>
+  bool contains(const Container& c, const T& value) {
+    return (std::find(c.cbegin(), c.cend(), value) != c.cend());
+  }
   void parseError(std::string msg, std::string& errormsg, bool forceNoParseErrorException = false);
   bool parseAnimationLine(const std::string& value, std::string& errormsg, dcled::AnimationList* list,
                           bool forceNoParseErrorException = false);
+  std::map<std::string, std::string> parseAnimationArgs(const std::vector<std::string>& animationArgs,
+                                                        const std::vector<std::string>& validArgs,
+                                                        const std::string& animationName,
+                                                        bool& errorOccured,
+                                                        std::string& errormsg,
+                                                        bool forceNoParseErrorException = false);
 
   bool make_TextAnimation(const std::vector<std::string>& animationArgs,
                           const std::string& animationData,
@@ -310,15 +321,24 @@ namespace // *****************************************************************
                             std::string& errormsg, dcled::AnimationList* list,
                             bool forceNoParseErrorException)
   {
+    const std::string animationName = "InvertAnimation";
+    {
+      const std::vector<std::string> validArgs = {};
+      bool argError = false;
+      const auto args = parseAnimationArgs(animationArgs, validArgs, animationName,
+                                           argError, errormsg, forceNoParseErrorException);
+      if( argError ) return false;
+    }
+
     if (!animationData.size()) {
-      parseError("InvertAnimation: Empty data.", errormsg, forceNoParseErrorException);
+      parseError(animationName + ": Empty data.", errormsg, forceNoParseErrorException);
       return false;
     }
 
     dcled::AnimationList nestedList;
     if (!parseAnimationLine(animationData, errormsg, &nestedList, true))
     {
-      parseError( std::string("InvertAnimation: ") + "'" + animationData + "': " + errormsg, errormsg);
+      parseError( animationName + ": '" + animationData + "': " + errormsg, errormsg);
       return false;
     }
     else
@@ -335,44 +355,37 @@ namespace // *****************************************************************
                           std::string& errormsg, dcled::AnimationList* list,
                           bool forceNoParseErrorException)
   {
+    const std::string animationName = "FlipAnimation";
+    const std::vector<std::string> validArgs = { "f", "d", "b" };
+
     if (!animationData.size()) {
-      parseError("FlipAnimation: Empty data.", errormsg, forceNoParseErrorException);
+      parseError(animationName + ": Empty data.", errormsg, forceNoParseErrorException);
       return false;
     }
 
+    bool argError = false;
+    const auto args = parseAnimationArgs(animationArgs, validArgs, animationName,
+                                         argError, errormsg, forceNoParseErrorException);
+    if( argError ) return false;
+
     dcled::Screen::Flip flip_direction = dcled::Screen::Flip::Horizontal;
-    // first argument is always animation character itself.
-    if (animationArgs.size() > 1) {
-      for (auto it = ++animationArgs.cbegin(), end = animationArgs.cend(); it != end; ++it)
-      {
-        const auto arg = split_first_one(*it, ":", true);
-        if (arg.size() < 2) {
-          parseError(std::string("FlipAnimation: Argument '")
-                                  + (arg.size() ? arg[0] : "")
-                                  + "' without value.", errormsg, forceNoParseErrorException);
+    for (const auto& arg : args)
+    {
+      if (arg.first == "d") {
+        if( arg.second.size() != 1 || !(arg.second[0] == 'h' || arg.second[0] == 'v') ) {
+          parseError(std::string(animationName + ": Invalid value for argument '")
+                                  + arg.first + "'.", errormsg, forceNoParseErrorException);
           return false;
         }
-        if (arg[0] == "d") {
-          if( arg[1].size() != 1 || !(arg[1][0] == 'h' || arg[1][0] == 'v') ) {
-            parseError(std::string("FlipAnimation: Invalid value for argument '")
-                                    + arg[0] + "'.", errormsg, forceNoParseErrorException);
-            return false;
-          }
-          if (arg[1][0] == 'v')
-            flip_direction = dcled::Screen::Flip::Vertical;
-        }
-        else {
-          parseError(std::string("FlipAnimation: Unknown argument '") + arg[0] + "'.",
-                     errormsg, forceNoParseErrorException);
-          return false;
-        }
+        if (arg.second[0] == 'v')
+          flip_direction = dcled::Screen::Flip::Vertical;
       }
     }
 
     dcled::AnimationList nestedList;
     if (!parseAnimationLine(animationData, errormsg, &nestedList, true))
     {
-      parseError( std::string("FlipAnimation: ") + "'" + animationData + "': " + errormsg, errormsg);
+      parseError( animationName + ": '" + animationData + "': " + errormsg, errormsg);
       return false;
     }
     else
@@ -390,50 +403,43 @@ namespace // *****************************************************************
                            std::string& errormsg, dcled::AnimationList* list,
                            bool forceNoParseErrorException)
   {
-    // default arguments
+    const std::string animationName = "ClockAnimation";
+    const std::vector<std::string> validArgs = { "f", "d", "b" };
+
+    bool argError = false;
+    const auto args = parseAnimationArgs(animationArgs, validArgs, animationName,
+                                         argError, errormsg, forceNoParseErrorException);
+    if( argError ) return false;
+
+    // default values for arguments
     dcled::ClockAnimation::Mode mode = dcled::ClockAnimation::Mode::H24;
     uint32_t display_time_s = 30;
     bool blinking_colon = true;
-    // first argument is always animation character itself.
-    if (animationArgs.size() > 1) {
-      for (auto it = ++animationArgs.cbegin(), end = animationArgs.cend(); it != end; ++it)
-      {
-        const auto arg = split_first_one(*it, ":", true);
-        if (arg.size() < 2) {
-          parseError(std::string("ClockAnimation: Argument '")
-                                  + (arg.size() ? arg[0] : "")
-                                  + "' without value.", errormsg, forceNoParseErrorException);
+    for (const auto& arg : args)
+    {
+      if (arg.first == "f") {
+        const int mode_arg = std::atoi( arg.second.c_str() );
+        if( mode_arg != static_cast<int>(dcled::ClockAnimation::Mode::H12)
+            && mode_arg != static_cast<int>(dcled::ClockAnimation::Mode::H24) ) {
+          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "'",
+                                 errormsg, forceNoParseErrorException);
           return false;
         }
-        if (arg[0] == "f") {
-          const int mode_arg = std::atoi( arg[1].c_str() );
-          if( mode_arg != static_cast<int>(dcled::ClockAnimation::Mode::H12)
-              && mode_arg != static_cast<int>(dcled::ClockAnimation::Mode::H24) ) {
-            parseError(std::string("ClockAnimation: Invalid value for '") + arg[0] + "'",
-                                   errormsg, forceNoParseErrorException);
-            return false;
-          }
-          mode = static_cast<dcled::ClockAnimation::Mode>(mode_arg);
+        mode = static_cast<dcled::ClockAnimation::Mode>(mode_arg);
+      }
+      else if (arg.first == "d") {
+        try { display_time_s = std::stoul( arg.second ); }
+        catch(...) {
+          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "'",
+                                 errormsg, forceNoParseErrorException);
+          return false;
         }
-        else if (arg[0] == "d") {
-          try { display_time_s = std::stoul( arg[1] ); }
-          catch(...) {
-            parseError(std::string("ClockAnimation: Invalid value for '") + arg[0] + "'",
-                                   errormsg, forceNoParseErrorException);
-            return false;
-          }
-        }
-        else if (arg[0] == "b") {
-          try{ blinking_colon = std::stoi( arg[1] ); }
-          catch(...) {
-            parseError(std::string("ClockAnimation: Invalid value for '") + arg[0] + "'",
-                                   errormsg, forceNoParseErrorException);
-            return false;
-          }
-        }
-        else {
-          parseError(std::string("ClockAnimation: Unknown argument '") + arg[0] + "'.",
-                     errormsg, forceNoParseErrorException);
+      }
+      else if (arg.first == "b") {
+        try{ blinking_colon = std::stoi( arg.second ); }
+        catch(...) {
+          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "'",
+                                 errormsg, forceNoParseErrorException);
           return false;
         }
       }
@@ -448,33 +454,27 @@ namespace // *****************************************************************
                           std::string& errormsg, dcled::AnimationList* list,
                           bool forceNoParseErrorException)
   {
+    const std::string animationName = "TextAnimation";
+    const std::vector<std::string> validArgs = { "s" };
+
     if (!animationData.size()) {
-      parseError("TextAnimation: Empty text data.", errormsg, forceNoParseErrorException);
+      parseError(animationName + ": Empty text data.", errormsg, forceNoParseErrorException);
       return false;
     }
-    uint32_t scrollspeed = 100;
-    // first argument is always animation character itself.
-    if (animationArgs.size() > 1) {
-      for (auto it = ++animationArgs.cbegin(), end = animationArgs.cend(); it != end; ++it)
-      {
-        const auto arg = split_first_one(*it, ":", true);
-        if (arg.size() < 2) {
-          parseError(std::string("TextAnimation: Argument '")
-                                  + (arg.size() ? arg[0] : "")
-                                  + "' without value.", errormsg, forceNoParseErrorException);
-          return false;
-        }
-        if (arg[0] == "s") {
-          scrollspeed = std::atol( arg[1].c_str() );
-          if( scrollspeed == 0 ) {
-            parseError(std::string("TextAnimation: Invalid value for argument '")
-                                    + arg[0] + "'.", errormsg, forceNoParseErrorException);
-            return false;
-          }
-        }
-        else {
-          parseError(std::string("TextAnimation: Unknown argument '") + arg[0] + "'.",
-                     errormsg, forceNoParseErrorException);
+
+    bool argError = false;
+    const auto args = parseAnimationArgs(animationArgs, validArgs, animationName,
+                                         argError, errormsg, forceNoParseErrorException);
+    if( argError ) return false;
+
+    uint32_t scrollspeed = 100; // default value
+    for (const auto& arg : args)
+    {
+      if (arg.first == "s") {
+        scrollspeed = std::atol( arg.second.c_str() );
+        if( scrollspeed == 0 ) {
+          parseError(std::string(animationName + ": Invalid value for argument '")
+                                  + arg.first + "'.", errormsg, forceNoParseErrorException);
           return false;
         }
       }
@@ -509,14 +509,50 @@ namespace // *****************************************************************
                     errormsg, list, forceNoParseErrorException);
   }
 
+  std::map<std::string, std::string> parseAnimationArgs(const std::vector<std::string>& animationArgs,
+                                                        const std::vector<std::string>& validArgs,
+                                                        const std::string& animationName,
+                                                        bool& errorOccured,
+                                                        std::string& errormsg,
+                                                        bool forceNoParseErrorException)
+  {
+    std::map<std::string, std::string> args;
+    errorOccured = false;
+    if (animationArgs.size() > 1) { // first argument is always animation identifier itself.
+      for (auto it = ++animationArgs.cbegin(), end = animationArgs.cend(); it != end; ++it)
+      {
+        const auto arg = split_first_one(*it, ":", true);
+        if (arg.size())
+        {
+          if (!contains(validArgs, arg[0])) {
+            parseError(animationName + ": Unknown argument '" + arg[0] + "'.",
+                       errormsg, forceNoParseErrorException);
+            errorOccured = true;
+            break;
+          }
+          if (arg.size() < 2) {
+            parseError(animationName + ": Argument '" + arg[0] + "' without value.",
+                       errormsg, forceNoParseErrorException);
+            errorOccured = true;
+            break;
+          }
+          args.emplace(std::make_pair(arg[0], (arg.size() < 2) ? std::string() : arg[1]));
+        }
+      }
+    }
+    return args;
+  }
+
   // Try to read animation descriptions from the given filename
   bool anim_FileReader(const std::vector<std::string>& animationArgs,
                        const std::string& animationData,
                        std::string& errormsg, dcled::AnimationList* list,
                        bool forceNoParseErrorException)
   {
+    const std::string animationName = "Animation FileReader";
+
     if (!animationData.size()) {
-      parseError("Animation FileReader: Missing file name.", errormsg, forceNoParseErrorException);
+      parseError(animationName + ": Missing file name.", errormsg, forceNoParseErrorException);
       return false;
     }
 
@@ -538,7 +574,7 @@ namespace // *****************************************************************
 
       if (!parseAnimationLine(line.substr(pos), errormsg, list, true))
       {
-        parseError( std::string("FileReader: ") + "'" + animationData + "' line "
+        parseError( animationName + ": '" + animationData + "' line "
                     + std::to_string(linecount) + ": " + errormsg, errormsg);
         return false;
       } else {
