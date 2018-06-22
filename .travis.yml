@@ -11,7 +11,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-5
-            - libusb-dev
+            - libusb-1.0-0-dev
             - libudev-dev
     - os: linux
       dist: trusty
@@ -20,7 +20,7 @@ matrix:
         apt:
           packages:
             - g++-6
-            - libusb-dev
+            - libusb-1.0-0-dev
             - libudev-dev
           sources: *sources
     - os: linux
@@ -30,7 +30,7 @@ matrix:
         apt:
           packages:
             - g++-7
-            - libusb-dev
+            - libusb-1.0-0-dev
             - libudev-dev
           sources: *sources
     - os: linux
@@ -40,7 +40,7 @@ matrix:
         apt:
           packages:
             - clang-3.8
-            - libusb-dev
+            - libusb-1.0-0-dev
             - libudev-dev
           sources: *sources
           
