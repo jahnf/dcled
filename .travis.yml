@@ -35,11 +35,11 @@ matrix:
           sources: *sources
     - os: linux
       dist: trusty
-      env: COMPILER_NAME=clang CXX=clang++-3.8 CC=clang-3.8
+      env: COMPILER_NAME=clang CXX=clang++-4.0 CC=clang-4.0
       addons:
         apt:
           packages:
-            - clang-3.8
+            - clang-4.0
             - libusb-1.0-0-dev
             - libudev-dev
           sources: *sources
