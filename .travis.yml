@@ -7,7 +7,7 @@ matrix:
       addons:
         apt:
           sources: &sources
-            - llvm-toolchain-precise-3.8
+            - llvm-toolchain-trusty-4.0
             - ubuntu-toolchain-r-test
           packages:
             - g++-5
