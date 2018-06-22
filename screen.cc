@@ -213,6 +213,7 @@ dcled::Screen& dcled::Screen::flip(Flip direction)
       std::swap(msgs_[1].data[0], msgs_[2].data[0]);
       break;
   }
+  return *this;
 }
 
 dcled::Screen& dcled::Screen::invert()

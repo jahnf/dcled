@@ -44,6 +44,20 @@ namespace dcled {
     animation_->reset();
   }
 
+  uint32_t InvertAnimation::step(Screen& s)
+  {
+    const auto step_ms = NestedAnimation::step(s);
+    if (step_ms) s.invert();
+    return step_ms;
+  }
+
+  uint32_t FlipAnimation::step(Screen& s)
+  {
+    const auto step_ms = NestedAnimation::step(s);
+    if (step_ms) s.flip(flip_direction_);
+    return step_ms;
+  }
+
   ClockAnimation::ClockAnimation(uint32_t display_time_s, bool blinking_colon, Mode mode)
     : display_time_s_(display_time_s), time_left_ms_(display_time_s*1000),
       blinking_colon_(blinking_colon), mode_(mode) {}

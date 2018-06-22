@@ -29,8 +29,8 @@ namespace dcled {
   {
   public:
     NestedAnimation(std::unique_ptr<Animation> a) : animation_(std::move(a)) {}
-    virtual ~NestedAnimation() = default;
-    virtual uint32_t step(Screen& s);
+    virtual ~NestedAnimation() override = default;
+    virtual uint32_t step(Screen& s) override;
     virtual void reset() override;
   private:
     Screen s_;
@@ -42,13 +42,8 @@ namespace dcled {
   {
   public:
     InvertAnimation(std::unique_ptr<Animation> a) : NestedAnimation(std::move(a)) {}
-    virtual ~InvertAnimation() = default;
-    virtual uint32_t step(Screen& s) override
-    {
-      const auto step_ms = NestedAnimation::step(s);
-      if (step_ms) s.invert();
-      return step_ms;
-    }
+    virtual ~InvertAnimation() override = default;
+    virtual uint32_t step(Screen& s) override;
   };
 
   class FlipAnimation : public NestedAnimation
@@ -56,13 +51,8 @@ namespace dcled {
   public:
     FlipAnimation(std::unique_ptr<Animation> a, Screen::Flip direction = Screen::Flip::Horizontal)
     : NestedAnimation(std::move(a)), flip_direction_(direction) {}
-    virtual ~FlipAnimation() = default;
-    virtual uint32_t step(Screen& s) override
-    {
-      const auto step_ms = NestedAnimation::step(s);
-      if (step_ms) s.flip(flip_direction_);
-      return step_ms;
-    }
+    virtual ~FlipAnimation() override = default;
+    virtual uint32_t step(Screen& s) override;
   private:
     const Screen::Flip flip_direction_ = Screen::Flip::Horizontal;
   };
@@ -73,7 +63,7 @@ namespace dcled {
   public:
     enum class Mode { H24 = 24, H12 = 12 };
     ClockAnimation( uint32_t display_time_s = 0, bool blinking_colon = true, Mode mode = Mode::H24 );
-    virtual ~ClockAnimation() = default;
+    virtual ~ClockAnimation() override = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override;
   private:
@@ -89,7 +79,7 @@ namespace dcled {
   {
   public:
     ShowScreenAnimation(const Screen& s, uint32_t time_ms = 1000 );
-    virtual ~ShowScreenAnimation() = default;
+    virtual ~ShowScreenAnimation() override = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override { done_ = false; }
   private:
@@ -106,7 +96,7 @@ namespace dcled {
     TextAnimation(const std::string& text, uint32_t speed, const font::Font& font = font::Default);
     TextAnimation(const std::string& text, ScrollSpeed speed = ScrollSpeed::Medium,
                   const font::Font& font = font::Default);
-    virtual ~TextAnimation() = default;
+    virtual ~TextAnimation() override = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override;
   private:
