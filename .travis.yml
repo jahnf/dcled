@@ -33,16 +33,16 @@ matrix:
             - libusb-1.0-0-dev
             - libudev-dev
           sources: *sources
-    - os: linux
-      dist: trusty
-      env: COMPILER_NAME=clang CXX=clang++-5.0 CC=clang-5.0
-      addons:
-        apt:
-          packages:
-            - clang-5.0
-            - libusb-1.0-0-dev
-            - libudev-dev
-          sources: *sources
+#    - os: linux
+#      dist: trusty
+#      env: COMPILER_NAME=clang CXX=clang++-5.0 CC=clang-5.0
+#      addons:
+#        apt:
+#          packages:
+#            - clang-5.0
+#            - libusb-1.0-0-dev
+#            - libudev-dev
+#          sources: *sources
           
 script: 
   - mkdir build && cd build 

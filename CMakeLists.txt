@@ -101,4 +101,4 @@ if(BUILD_DCLED_WITHOUT_HIDAPI)
   target_link_libraries(dcledc-nohidapi dcledcli-nohidapi dcledlib-nohidapi)
 endif()
 
-add_custom_target(non-sources SOURCES README.md LICENSE 40-dcled.rules)
+add_custom_target(non-sources SOURCES README.md LICENSE 40-dcled.rules .travis.yml)
