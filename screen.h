@@ -2,8 +2,7 @@
 // Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
 // Distributed under the MIT License. See accompanying LICENSE file.
 
-#ifndef DCLED_SCREEN_H
-#define DCLED_SCREEN_H
+#pragma once
 
 #include <vector>
 #include <list>
@@ -65,4 +64,3 @@ namespace dcled
     LedMsg msgs_[4];
   };
 } // end namespace dcled
-#endif // DCLED_SCREEN_H

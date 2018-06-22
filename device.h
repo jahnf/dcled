@@ -2,8 +2,7 @@
 // Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
 // Distributed under the MIT License. See accompanying LICENSE file.
 
-#ifndef DEVICE_H
-#define DEVICE_H
+#pragma once
 
 #include <list>
 #include <memory>
@@ -103,5 +102,3 @@ namespace dcled
   };
 
 } // end namespace dcled
-
-#endif // DEVICE_H

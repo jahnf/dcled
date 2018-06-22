@@ -2,8 +2,7 @@
 // Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
 // Distributed under the MIT License. See accompanying LICENSE file.
 
-#ifndef DCLED_ANIMATIONS_H
-#define DCLED_ANIMATIONS_H
+#pragma once
 
 #include "fonts.h"
 #include "screen.h"
@@ -118,5 +117,3 @@ namespace dcled {
     uint8_t cur_char_pix_ = 0;
   };
 }
-
-#endif // DCLED_ANIMATIONS_H
