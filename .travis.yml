@@ -1,0 +1,50 @@
+language: generic
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      env: COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
+      addons:
+        apt:
+          sources: &sources
+            - llvm-toolchain-trusty-5.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
+            - libusb-1.0-0-dev
+            - libudev-dev
+    - os: linux
+      dist: trusty
+      env: COMPILER_NAME=gcc CXX=g++-6 CC=gcc-6
+      addons:
+        apt:
+          packages:
+            - g++-6
+            - libusb-1.0-0-dev
+            - libudev-dev
+          sources: *sources
+    - os: linux
+      dist: trusty
+      env: COMPILER_NAME=gcc CXX=g++-7 CC=gcc-7
+      addons:
+        apt:
+          packages:
+            - g++-7
+            - libusb-1.0-0-dev
+            - libudev-dev
+          sources: *sources
+#    - os: linux
+#      dist: trusty
+#      env: COMPILER_NAME=clang CXX=clang++-5.0 CC=clang-5.0
+#      addons:
+#        apt:
+#          packages:
+#            - clang-5.0
+#            - libusb-1.0-0-dev
+#            - libudev-dev
+#          sources: *sources
+          
+script: 
+  - mkdir build && cd build 
+  - cmake .. -DBUILD_DCLED_HIDAPI_LIBUSB=1 -DBUILD_DCLED_HIDAPI_RAW=1 -DBUILD_DCLED_WITHOUT_HIDAPI=1
+  - make

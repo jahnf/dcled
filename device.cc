@@ -17,19 +17,27 @@
 #include <thread>
 #include <utility>
 
-#include <hidapi/hidapi.h>
-
 // Linux only, TODO Windows alternative for isatty...
 #include <unistd.h>
 
 #include "moodycamel/concurrentqueue.h"
 
-HidApi::HidApi() : res(hid_init()) {}
+#ifndef WITHOUT_HIDAPI
+#include <hidapi/hidapi.h>
 
-HidApi::~HidApi()
-{
-  hid_exit();
+HidApi::HidApi() : res(hid_init()) {}
+HidApi::~HidApi() { hid_exit(); }
+#else
+HidApi::HidApi() : res(1) {}
+HidApi::~HidApi() {}
+namespace {
+  using hid_device = void;
+  void* hid_open(...) { return nullptr; }
+  void* hid_open_path(...) { return nullptr; }
+  void hid_close(...) {}
 }
+#endif
+
 
 namespace {
   bool stdoutIsTty() {
@@ -72,13 +80,13 @@ struct dcled::Device::Impl
     }
   }
 
-  Impl(const std::string usb_path, bool toStdout = false)
-    : to_stdout(toStdout), stdout_is_tty(stdoutIsTty())
+  Impl(std::string usb_path, bool toStdout = false)
+    : path(std::move(usb_path)), to_stdout(toStdout), stdout_is_tty(stdoutIsTty())
   {
-    if (usb_path.compare( INVALID_DEV_PATH ) == 0) {
+    if (path.compare( INVALID_DEV_PATH ) == 0) {
       handle = nullptr;
     }
-    else if (usb_path.compare( EMULATED_DEV_PATH ) != 0) {
+    else if (path.compare( EMULATED_DEV_PATH ) != 0) {
       handle = hid_open_path(usb_path.c_str());
     }
     else {
@@ -134,11 +142,13 @@ struct dcled::Device::Impl
 
   void screenToDevice()
   {
+#ifndef WITHOUT_HIDAPI
     if (handle) {
       for (const auto& msg : screen.msgs() ) {
         hid_send_feature_report(handle, reinterpret_cast<const uint8_t*>(&msg), screen.LEDMSGSIZE );
       }
     }
+#endif
     if (to_stdout) {
       terminalPosReset();
       screen.print(stdout_is_tty);
@@ -159,8 +169,13 @@ dcled::Device::Device(bool toStdout)
 {
 }
 
-dcled::Device::Device(const std::string& device_path, bool toStdout)
+dcled::Device::Device(const char* device_path, bool toStdout)
   : p_(new Impl(device_path, toStdout))
+{
+}
+
+dcled::Device::Device(std::string device_path, bool toStdout)
+  : p_(new Impl(std::move(device_path), toStdout))
 {
 }
 
@@ -171,12 +186,12 @@ dcled::Device::Device(Device&& other)
 
 dcled::Device::~Device()
 {
-  // debug() << "~Device()";
 }
 
 const std::list<dcled::DeviceInfo> dcled::Device::list()
 {
   std::list<DeviceInfo> device_list;
+#ifndef WITHOUT_HIDAPI
   if (HidApi::init())
   {
     hid_device_info* devs = hid_enumerate(0x0, 0x0);
@@ -196,6 +211,7 @@ const std::list<dcled::DeviceInfo> dcled::Device::list()
     }
     hid_free_enumeration(devs);
   }
+#endif
   return device_list;
 }
 

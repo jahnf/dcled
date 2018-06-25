@@ -2,8 +2,7 @@
 // Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
 // Distributed under the MIT License. See accompanying LICENSE file.
 
-#ifndef DCLED_ANIMATIONS_H
-#define DCLED_ANIMATIONS_H
+#pragma once
 
 #include "fonts.h"
 #include "screen.h"
@@ -26,25 +25,45 @@ namespace dcled {
     virtual void reset() = 0;
   };
 
-  // TODO : blinking animation of last screen with given interval and count
-  class BlinkingAnimation : public Animation
+  class NestedAnimation : public Animation
   {
   public:
-    BlinkingAnimation(uint32_t interval_ms, uint32_t count = 1);
-    virtual ~BlinkingAnimation() = default;
-    virtual uint32_t step(Screen&) override;
-    virtual void reset() override { counter_ = 10; }
+    NestedAnimation(std::unique_ptr<Animation> a) : animation_(std::move(a)) {}
+    virtual ~NestedAnimation() override = default;
+    virtual uint32_t step(Screen& s) override;
+    virtual void reset() override;
   private:
     Screen s_;
-    int counter_ = 10;
+    std::unique_ptr<Animation> animation_;
+    bool first_step_ = true;
   };
 
+  class InvertAnimation : public NestedAnimation
+  {
+  public:
+    InvertAnimation(std::unique_ptr<Animation> a) : NestedAnimation(std::move(a)) {}
+    virtual ~InvertAnimation() override = default;
+    virtual uint32_t step(Screen& s) override;
+  };
+
+  class FlipAnimation : public NestedAnimation
+  {
+  public:
+    FlipAnimation(std::unique_ptr<Animation> a, Screen::Flip direction = Screen::Flip::Horizontal)
+    : NestedAnimation(std::move(a)), flip_direction_(direction) {}
+    virtual ~FlipAnimation() override = default;
+    virtual uint32_t step(Screen& s) override;
+  private:
+    const Screen::Flip flip_direction_ = Screen::Flip::Horizontal;
+  };
+
+  /// Shows a digital clock in either 24 or 12 hour format, for a given time or forever.
   class ClockAnimation : public Animation
   {
   public:
     enum class Mode { H24 = 24, H12 = 12 };
     ClockAnimation( uint32_t display_time_s = 0, bool blinking_colon = true, Mode mode = Mode::H24 );
-    virtual ~ClockAnimation() = default;
+    virtual ~ClockAnimation() override = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override;
   private:
@@ -59,8 +78,8 @@ namespace dcled {
   class ShowScreenAnimation : public Animation
   {
   public:
-    ShowScreenAnimation(const Screen& s, uint32_t time_ms = 1000 );
-    virtual ~ShowScreenAnimation() = default;
+    ShowScreenAnimation(const Screen& s, uint32_t time_ms = 1000);
+    virtual ~ShowScreenAnimation() override = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override { done_ = false; }
   private:
@@ -69,7 +88,60 @@ namespace dcled {
     bool done_ = false;
   };
 
-  //namespace font{ struct Font; }
+  class InvertScreenAnimation : public Animation
+  {
+  public:
+    InvertScreenAnimation(uint32_t time_ms = 0) : time_ms_(time_ms) {}
+    virtual ~InvertScreenAnimation() override = default;
+    virtual uint32_t step(Screen&) override;
+    virtual void reset() override { done_ = false; }
+  private:
+    uint32_t time_ms_ = 0;
+    bool done_ = false;
+  };
+
+  class FlipScreenAnimation : public Animation
+  {
+  public:
+    FlipScreenAnimation(Screen::Flip direction = Screen::Flip::Horizontal, uint32_t time_ms = 0)
+      : direction_(direction), time_ms_(time_ms) {}
+    virtual ~FlipScreenAnimation() override = default;
+    virtual uint32_t step(Screen&) override;
+    virtual void reset() override { done_ = false; }
+  private:
+    Screen::Flip direction_ = Screen::Flip::Horizontal;
+    uint32_t time_ms_ = 0;
+    bool done_ = false;
+  };
+
+  class NilAnimation : public Animation
+  {
+  public:
+    NilAnimation(uint32_t time_ms = 1000) : time_ms_(time_ms) {}
+    virtual ~NilAnimation() override = default;
+    virtual uint32_t step(Screen&) override;
+    virtual void reset() override { done_ = false; }
+  private:
+    uint32_t time_ms_ = 1000;
+    bool done_ = false;
+  };
+
+  class SetRectAnimation : public Animation
+  {
+  public:
+    SetRectAnimation(bool on, uint32_t x, uint32_t y, uint32_t w = 1, uint32_t h = 1, uint32_t time_ms = 0)
+    : on_(on), time_ms_(time_ms), x_(x), y_(y), w_(w), h_(h) {}
+    virtual ~SetRectAnimation() override = default;
+    virtual uint32_t step(Screen&) override;
+    virtual void reset() override { done_ = false; }
+  private:
+    bool on_ = true;
+    uint32_t time_ms_ = 0;
+    uint32_t x_ = 0, y_ = 0, w_ = 1, h_ = 1;
+    bool done_ = false;
+  };
+
+  /// Scrolling test animation with a given text, scrollspeed and font.
   class TextAnimation : public Animation
   {
   public:
@@ -77,7 +149,7 @@ namespace dcled {
     TextAnimation(const std::string& text, uint32_t speed, const font::Font& font = font::Default);
     TextAnimation(const std::string& text, ScrollSpeed speed = ScrollSpeed::Medium,
                   const font::Font& font = font::Default);
-    virtual ~TextAnimation() = default;
+    virtual ~TextAnimation() override = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override;
   private:
@@ -88,5 +160,3 @@ namespace dcled {
     uint8_t cur_char_pix_ = 0;
   };
 }
-
-#endif // DCLED_ANIMATIONS_H

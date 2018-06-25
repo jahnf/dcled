@@ -15,8 +15,6 @@ namespace {
   }
 } // end anonymous namespace
 
-static std::list<std::unique_ptr<dcled::Animation>> mylist;
-
 int main(int argc, char* argv[])
 {
   // Parse command line, print errors, print help ...

@@ -2,8 +2,7 @@
 // Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
 // Distributed under the MIT License. See accompanying LICENSE file.
 
-#ifndef DCLED_FONT_H
-#define DCLED_FONT_H
+#pragma once
 
 #include <string>
 
@@ -29,5 +28,3 @@ namespace dcled
     extern const Font Small;
   }
 }
-
-#endif // DCLED_FONT_H

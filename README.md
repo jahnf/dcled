@@ -1,4 +1,5 @@
 # dcled (hidapi)
+
 Userland driver for Dream Cheeky (Dream Link?) USB LED Message Board.
 
 Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
@@ -21,17 +22,29 @@ Pavel Belikov is used for argumen t parsing.
 * And of course `HID API` (https://github.com/signal11/hidapi).
 
 ## Building
+
 **Requirements**
+
 * C++14 compiler (if gcc, then version 5 or higher)
 * CMake 3.8 or later
+* libusb when building the default version with hidapi-libusb
 
-** How to build:**
+**How to build:**
 
       > git clone https://github.com/jahnf/dcled-hidapi
       > cd dcled-hidapi
       > mkdir build && cd build
       > cmake ..
       > make
+
+**Build options**
+
+Besides the default CMake build options, the following is available:
+* `BUILD_DCLED_HIDAPI_LIBUSB` - Build a dcled version with hidapi-libusb, default = ON
+* `BUILD_DCLED_HIDAPI_RAW` - Build a dcled version with hidapi-raw, default = OFF
+* `BUILD_DCLED_WITHOUT_HIDAPI` - Build a dcled version without any hidapi/usb bindings, default = OFF
+
+Either tell CMake the options on the command line or use the CMake convenience tools `ccmake` or `cmake-gui`.
 
 ## Features
 
@@ -41,10 +54,10 @@ there are new features available.
 * Basically dcled (hidapi) take a list of animations,
   puts them in the devices queue and it is processed.
 
-* This can be via the command line or via files (with animation lists inside) or a mix.
+* This can be via the command line or via files (with animation lists inside) or a mix of it.
 
 * Even if you don't have a USB Messageboard connected you can show the animations
-  on your (color-enabled) terminal. (`-s` and `-v` options)
+  on your (color-enabled) terminal. (`-s` and `-v` command line options)
 
 ## Running
 
@@ -59,8 +72,7 @@ you need to give yourself write acces to this device.
 
 ## Other
 
-* See Dream Cheeky Hardware Developer Manual: https://file.io/Decd6c
-
+* See Jeff Jahr's original page: https://www.last-outpost.com/~malakai/dcled/
 
 ## Roadmap/Ideas
 

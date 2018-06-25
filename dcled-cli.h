@@ -2,8 +2,7 @@
 // Copyright 2018 Jahn Fuchs <github.jahnf@wolke7.net>
 // Distributed under the MIT License. See accompanying LICENSE file.
 
-#ifndef DCLED_CLI_H
-#define DCLED_CLI_H
+#pragma once
 
 #include <list>
 #include <memory>
@@ -49,7 +48,3 @@ namespace dcled {
     };
   }
 }
-
-
-
-#endif // DCLED_CLI_H

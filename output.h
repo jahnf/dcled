@@ -1,6 +1,4 @@
-#ifndef OUTPUT_H
-#define OUTPUT_H
-
+#pragma once
 #include <iostream>
 
 struct print {
@@ -14,5 +12,3 @@ struct error {
   auto& operator<<(const T& a) const { return std::cerr << a; }
   ~error() { std::cerr << std::endl; }
 };
-
-#endif // OUTPUT_H
