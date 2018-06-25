@@ -133,8 +133,47 @@ namespace dcled {
 
   uint32_t ShowScreenAnimation::step(Screen& screen)
   {
-    if( !done_ ) {
+    if (!done_) {
       screen = s_;
+      done_ = true;
+      return time_ms_;
+    }
+    return 0;
+  }
+
+  uint32_t NilAnimation::step(Screen& screen)
+  {
+    if (!done_) {
+      done_ = true;
+      return time_ms_;
+    }
+    return 0;
+  }
+
+  uint32_t SetRectAnimation::step(Screen& screen)
+  {
+    if (!done_) {
+      screen.setRect(x_, y_, w_, h_, on_);
+      done_ = true;
+      return time_ms_;
+    }
+    return 0;
+  }
+
+  uint32_t InvertScreenAnimation::step(Screen& screen)
+  {
+    if (!done_) {
+      screen.invert();
+      done_ = true;
+      return time_ms_;
+    }
+    return 0;
+  }
+
+  uint32_t FlipScreenAnimation::step(Screen& screen)
+  {
+    if (!done_) {
+      screen.flip(direction_);
       done_ = true;
       return time_ms_;
     }

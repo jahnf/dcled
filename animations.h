@@ -78,13 +78,66 @@ namespace dcled {
   class ShowScreenAnimation : public Animation
   {
   public:
-    ShowScreenAnimation(const Screen& s, uint32_t time_ms = 1000 );
+    ShowScreenAnimation(const Screen& s, uint32_t time_ms = 1000);
     virtual ~ShowScreenAnimation() override = default;
     virtual uint32_t step(Screen&) override;
     virtual void reset() override { done_ = false; }
   private:
     Screen s_;
     uint32_t time_ms_ = 1000;
+    bool done_ = false;
+  };
+
+  class InvertScreenAnimation : public Animation
+  {
+  public:
+    InvertScreenAnimation(uint32_t time_ms = 0) : time_ms_(time_ms) {}
+    virtual ~InvertScreenAnimation() override = default;
+    virtual uint32_t step(Screen&) override;
+    virtual void reset() override { done_ = false; }
+  private:
+    uint32_t time_ms_ = 0;
+    bool done_ = false;
+  };
+
+  class FlipScreenAnimation : public Animation
+  {
+  public:
+    FlipScreenAnimation(Screen::Flip direction = Screen::Flip::Horizontal, uint32_t time_ms = 0)
+      : direction_(direction), time_ms_(time_ms) {}
+    virtual ~FlipScreenAnimation() override = default;
+    virtual uint32_t step(Screen&) override;
+    virtual void reset() override { done_ = false; }
+  private:
+    Screen::Flip direction_ = Screen::Flip::Horizontal;
+    uint32_t time_ms_ = 0;
+    bool done_ = false;
+  };
+
+  class NilAnimation : public Animation
+  {
+  public:
+    NilAnimation(uint32_t time_ms = 1000) : time_ms_(time_ms) {}
+    virtual ~NilAnimation() override = default;
+    virtual uint32_t step(Screen&) override;
+    virtual void reset() override { done_ = false; }
+  private:
+    uint32_t time_ms_ = 1000;
+    bool done_ = false;
+  };
+
+  class SetRectAnimation : public Animation
+  {
+  public:
+    SetRectAnimation(bool on, uint32_t x, uint32_t y, uint32_t w = 1, uint32_t h = 1, uint32_t time_ms = 0)
+    : on_(on), time_ms_(time_ms), x_(x), y_(y), w_(w), h_(h) {}
+    virtual ~SetRectAnimation() override = default;
+    virtual uint32_t step(Screen&) override;
+    virtual void reset() override { done_ = false; }
+  private:
+    bool on_ = true;
+    uint32_t time_ms_ = 0;
+    uint32_t x_ = 0, y_ = 0, w_ = 1, h_ = 1;
     bool done_ = false;
   };
 
