@@ -18,6 +18,8 @@
 #include <vector>
 
 #define ANIMATIONREADER_THROWS 1
+#define ANIMATION_ARG_DELIMITER_STR ","
+#define ANIMATION_ARG_DELIMITER_CHAR ','
 
 namespace // *****************************************************************
 {
@@ -35,6 +37,7 @@ namespace // *****************************************************************
                           bool forceNoParseErrorException = false);
   std::map<std::string, std::string> parseAnimationArgs(const std::vector<std::string>& animationArgs,
                                                         const std::vector<std::string>& validArgs,
+                                                        const std::vector<std::string>& requiredArgs,
                                                         const std::string& animationName,
                                                         bool& errorOccured,
                                                         std::string& errormsg,
@@ -60,6 +63,16 @@ namespace // *****************************************************************
                           std::string& errormsg, dcled::AnimationList* list,
                           bool forceNoParseErrorException = false);
 
+  bool make_NilAnimation(const std::vector<std::string>& animationArgs,
+                          const std::string& animationData,
+                          std::string& errormsg, dcled::AnimationList* list,
+                          bool forceNoParseErrorException = false);
+
+  bool make_SetRectAnimation(const std::vector<std::string>& animationArgs,
+                             const std::string& animationData,
+                             std::string& errormsg, dcled::AnimationList* list,
+                             bool forceNoParseErrorException = false);
+
   bool anim_FileReader(const std::vector<std::string>& animationArgs,
                        const std::string& animationData,
                        std::string& errormsg, dcled::AnimationList* list,
@@ -77,9 +90,10 @@ namespace // *****************************************************************
   };
 
   // Animation type -> parser function array
-  constexpr std::array<TypeEntry, 5> animationTypes = {{
+  constexpr std::array<TypeEntry, 7> animationTypes = {{
     {'t', make_TextAnimation}, {'f', anim_FileReader}, {'c', make_ClockAnimation},
-    {'I', make_InvertAnimation}, {'F', make_FlipAnimation}
+    {'I', make_InvertAnimation}, {'F', make_FlipAnimation}, {'n', make_NilAnimation},
+    {'s', make_SetRectAnimation}
   }};
 
   // AnimationReader - custom parsing for args::ArgumentParser
@@ -139,31 +153,44 @@ namespace dcled { namespace cli // *********************************************
     args::Base emptyLine("");
     parser.Add(emptyLine);
     args::PositionalList<std::string, std::list, AnimationReader<&Animation_List_>>
-            animations(parser, "ANIMATION", "List of animations with the format:\n" "[Type][,Arg:Value...][=Data]");
+            animations(parser, "ANIMATION", "List of animations with the format:\n" "[Type]["
+            ANIMATION_ARG_DELIMITER_STR "Arg:Value...][=Data]");
 
-    std::vector<args::NamedBase> animDescriptions = {
-      args::NamedBase("f : Read from File","Read animation list from file\n"
-                                           "  Data (required) : File path" ),
-      args::NamedBase("t : TextAnimation","Scrolling text\n"
-                                          "  Optional Arguments:\n"
-                                          "   - ScrollSpeed 's' : ms (default=100)\n"
-                                          "  Data (required) : Scroll text"),
-      args::NamedBase("c : ClockAnimation","Show the current time\n"
+    // Vector of description and boolean to indicate if this option is for the extended help list.
+    std::vector<std::pair<args::NamedBase, bool>> animDescriptions = {
+      { args::NamedBase("f : Read from File", "Read animation list from file\n"
+                                              "  Data (required) : File path" ), false },
+      { args::NamedBase("t : TextAnimation", "Scrolling text\n"
+                                             "  Optional Arguments:\n"
+                                             "   - ScrollSpeed 's' : ms (default=100)\n"
+                                             "  Data (required) : Scroll text"), false },
+      { args::NamedBase("c : ClockAnimation", "Show the current time\n"
+                                              "  Optional Arguments:\n"
+                                              "   - Duration 'd' : seconds (default=30)\n"
+                                              "   - ColonBlink 'b' : 0 or 1 (default=1)\n"
+                                              "   - Format 'f' : 12 or 24 (default=24)"), false },
+      { args::NamedBase("s : SetRectAnimation", "Set screen LEDs on/off\n"
+                                                 "  Required Arguments:\n"
+                                                 "   - 'x' : LED in x pos\n"
+                                                 "   - 'y' : LED in y pos\n"
+                                                 "  Optional Arguments:\n"
+                                                 "   - 'w' : width of rect (default = 1)\n"
+                                                 "   - 'h' : height of rect (default = 1)\n"
+                                                 "  Required Data: on/1 or off/0"), true},
+      { args::NamedBase("n : NilAnimation", "Do nothing for\n"
                                             "  Optional Arguments:\n"
-                                            "   - Duration 'd' : seconds (default=30)\n"
-                                            "   - ColonBlink 'b' : 0 or 1 (default=1)\n"
-                                            "   - Format 'f' : 12 or 24 (default=24)"),
-      args::NamedBase("I : InvertAnimation","Invert nested animation(s)\n"
-                                            "  Required Data: ANIMATION"),
-      args::NamedBase("F : FlipAnimation","Flip nested animation(s)\n"
-                                          "  Optional Arguments:\n"
-                                          "   - Direction 'd' : h or v (default=h)\n"
-                                          "  Required Data: ANIMATION")
+                                            "   - 't' : time in ms (default = 1000)"), true },
+      { args::NamedBase("I : InvertAnimation", "Invert either screen or nested animation(s)\n"
+                                               "  Optional Data: ANIMATION"), false },
+      { args::NamedBase("F : FlipAnimation", "Flip either screen or nested animation(s)\n"
+                                             "  Optional Arguments:\n"
+                                             "   - Direction 'd' : h or v (default=h)\n"
+                                             "  Optional Data: ANIMATION"), false },
     };
 
     for (auto& d : animDescriptions) {
       parser.Add(emptyLine);
-      parser.Add(d);
+      parser.Add(d.first);
     }
 
     try
@@ -323,16 +350,16 @@ namespace // *****************************************************************
   {
     const std::string animationName = "InvertAnimation";
     {
-      const std::vector<std::string> validArgs = {};
+      const std::vector<std::string> validArgs = {}, requiredArgs;
       bool argError = false;
-      const auto args = parseAnimationArgs(animationArgs, validArgs, animationName,
+      const auto args = parseAnimationArgs(animationArgs, validArgs, requiredArgs, animationName,
                                            argError, errormsg, forceNoParseErrorException);
       if( argError ) return false;
     }
 
     if (!animationData.size()) {
-      parseError(animationName + ": Empty data.", errormsg, forceNoParseErrorException);
-      return false;
+      list->emplace_back(std::make_unique<dcled::InvertScreenAnimation>(0));
+      return true;
     }
 
     dcled::AnimationList nestedList;
@@ -356,15 +383,10 @@ namespace // *****************************************************************
                           bool forceNoParseErrorException)
   {
     const std::string animationName = "FlipAnimation";
-    const std::vector<std::string> validArgs = { "f", "d", "b" };
-
-    if (!animationData.size()) {
-      parseError(animationName + ": Empty data.", errormsg, forceNoParseErrorException);
-      return false;
-    }
+    const std::vector<std::string> validArgs = { "f", "d", "b" }, requiredArgs;
 
     bool argError = false;
-    const auto args = parseAnimationArgs(animationArgs, validArgs, animationName,
+    const auto args = parseAnimationArgs(animationArgs, validArgs, requiredArgs, animationName,
                                          argError, errormsg, forceNoParseErrorException);
     if( argError ) return false;
 
@@ -380,6 +402,11 @@ namespace // *****************************************************************
         if (arg.second[0] == 'v')
           flip_direction = dcled::Screen::Flip::Vertical;
       }
+    }
+
+    if (!animationData.size()) {
+      list->emplace_back(std::make_unique<dcled::FlipScreenAnimation>(flip_direction, 0));
+      return true;
     }
 
     dcled::AnimationList nestedList;
@@ -404,10 +431,10 @@ namespace // *****************************************************************
                            bool forceNoParseErrorException)
   {
     const std::string animationName = "ClockAnimation";
-    const std::vector<std::string> validArgs = { "f", "d", "b" };
+    const std::vector<std::string> validArgs = { "f", "d", "b" }, requiredArgs;
 
     bool argError = false;
-    const auto args = parseAnimationArgs(animationArgs, validArgs, animationName,
+    const auto args = parseAnimationArgs(animationArgs, validArgs, requiredArgs, animationName,
                                          argError, errormsg, forceNoParseErrorException);
     if( argError ) return false;
 
@@ -421,7 +448,7 @@ namespace // *****************************************************************
         const int mode_arg = std::atoi( arg.second.c_str() );
         if( mode_arg != static_cast<int>(dcled::ClockAnimation::Mode::H12)
             && mode_arg != static_cast<int>(dcled::ClockAnimation::Mode::H24) ) {
-          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "'",
+          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "' (12 or 24)",
                                  errormsg, forceNoParseErrorException);
           return false;
         }
@@ -438,7 +465,7 @@ namespace // *****************************************************************
       else if (arg.first == "b") {
         try{ blinking_colon = std::stoi( arg.second ); }
         catch(...) {
-          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "'",
+          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "' (1 or 0)",
                                  errormsg, forceNoParseErrorException);
           return false;
         }
@@ -455,7 +482,7 @@ namespace // *****************************************************************
                           bool forceNoParseErrorException)
   {
     const std::string animationName = "TextAnimation";
-    const std::vector<std::string> validArgs = { "s" };
+    const std::vector<std::string> validArgs = { "s" }, requiredArgs;
 
     if (!animationData.size()) {
       parseError(animationName + ": Empty text data.", errormsg, forceNoParseErrorException);
@@ -463,7 +490,7 @@ namespace // *****************************************************************
     }
 
     bool argError = false;
-    const auto args = parseAnimationArgs(animationArgs, validArgs, animationName,
+    const auto args = parseAnimationArgs(animationArgs, validArgs, requiredArgs, animationName,
                                          argError, errormsg, forceNoParseErrorException);
     if( argError ) return false;
 
@@ -483,15 +510,111 @@ namespace // *****************************************************************
     return true;
   }
 
+  bool make_NilAnimation( const std::vector<std::string>& animationArgs,
+                          const std::string& animationData,
+                          std::string& errormsg, dcled::AnimationList* list,
+                          bool forceNoParseErrorException)
+  {
+    const std::string animationName = "NilAnimation";
+    const std::vector<std::string> validArgs = { "t" }, requiredArgs;
+
+    bool argError = false;
+    const auto args = parseAnimationArgs(animationArgs, validArgs, requiredArgs, animationName,
+                                         argError, errormsg, forceNoParseErrorException);
+    if( argError ) return false;
+
+    uint32_t time_ms = 1000; // default value
+    for (const auto& arg : args)
+    {
+      if (arg.first == "t") {
+        time_ms = std::atol( arg.second.c_str() );
+        if( time_ms == 0 ) {
+          parseError(std::string(animationName + ": Invalid value for argument '")
+                                  + arg.first + "'.", errormsg, forceNoParseErrorException);
+          return false;
+        }
+      }
+    }
+    list->emplace_back(std::make_unique<dcled::NilAnimation>(time_ms));
+    return true;
+  }
+
+  bool make_SetRectAnimation( const std::vector<std::string>& animationArgs,
+                              const std::string& animationData,
+                              std::string& errormsg, dcled::AnimationList* list,
+                              bool forceNoParseErrorException)
+  {
+    const std::string animationName = "SetRectAnimation";
+    const std::vector<std::string> validArgs = { "x", "y", "w", "h" }, requiredArgs = { "x", "y" };
+
+    bool argError = false;
+    const auto args = parseAnimationArgs(animationArgs, validArgs, requiredArgs, animationName,
+                                         argError, errormsg, forceNoParseErrorException);
+    if( argError ) return false;
+
+    bool ledsOn = true;
+    {
+      std::string data = animationData;
+      std::transform(animationData.begin(), animationData.end(), data.begin(), ::tolower);
+      if (data == "on" ||  data == "1") {
+        ledsOn = true;
+      } else if (data == "off" ||  data == "0") {
+        ledsOn = false;
+      } else {
+        parseError(animationName + ": Invalid or missing data.", errormsg, forceNoParseErrorException);
+        return false;
+      }
+    }
+
+    uint32_t x = 0, y = 0, w = 1, h = 1; // default values
+    for (const auto& arg : args)
+    {
+      if (arg.first == "x") {
+        try { x = std::stoul( arg.second ); }
+        catch(...) {
+          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "'",
+                                 errormsg, forceNoParseErrorException);
+          return false;
+        }
+      }
+      else if (arg.first == "y") {
+        try { y = std::stoul( arg.second ); }
+        catch(...) {
+          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "'",
+                                 errormsg, forceNoParseErrorException);
+          return false;
+        }
+      }
+      else if (arg.first == "w") {
+        try { w = std::stoul( arg.second ); }
+        catch(...) {
+          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "'",
+                                 errormsg, forceNoParseErrorException);
+          return false;
+        }
+      }
+      else if (arg.first == "h") {
+        try { h = std::stoul( arg.second ); }
+        catch(...) {
+          parseError(std::string(animationName + ": Invalid value for '") + arg.first + "'",
+                                 errormsg, forceNoParseErrorException);
+          return false;
+        }
+      }
+    }
+    list->emplace_back(std::make_unique<dcled::SetRectAnimation>(ledsOn, x, y, w, h, 0));
+    return true;
+  }
+
   // Parse an animation description
   bool parseAnimationLine(const std::string& value, std::string& errormsg,
                           dcled::AnimationList* list, bool forceNoParseErrorException)
   {
     if (!value.size()) return false;
     const auto svalue = split_first_one(value, "=");
-    // check if second character is either a '=' or a ','
-    if (value.size() > 1 && value[1] != '=' && value[1] != ',' ) {
-      parseError(std::string("Invalid animation type '") + split(svalue[0])[0] + "'",
+    // check if second character is either a '=' or a ANIMATION_ARG_DELIMITER_CHAR
+    if (value.size() > 1 && value[1] != '=' && value[1] != ANIMATION_ARG_DELIMITER_CHAR ) {
+      parseError(std::string("Invalid animation type '") + split(svalue[0], ANIMATION_ARG_DELIMITER_STR)[0] + "'",
                  errormsg, forceNoParseErrorException);
       return false;
     }
@@ -505,12 +628,13 @@ namespace // *****************************************************************
       return false;
     }
     // Call animation parser function from array.
-    return it->func(split(svalue[0]), svalue.size() > 1 ? svalue[1] : std::string(),
+    return it->func(split(svalue[0], ANIMATION_ARG_DELIMITER_STR), svalue.size() > 1 ? svalue[1] : std::string(),
                     errormsg, list, forceNoParseErrorException);
   }
 
   std::map<std::string, std::string> parseAnimationArgs(const std::vector<std::string>& animationArgs,
                                                         const std::vector<std::string>& validArgs,
+                                                        const std::vector<std::string>& requiredArgs,
                                                         const std::string& animationName,
                                                         bool& errorOccured,
                                                         std::string& errormsg,
@@ -540,6 +664,14 @@ namespace // *****************************************************************
         }
       }
     }
+    for (const auto& rarg : requiredArgs) {
+      if (!args[rarg].size()) {
+        parseError(animationName + ": Required argument '" + rarg + "' missing.",
+                   errormsg, forceNoParseErrorException);
+        errorOccured = true;
+        break;
+      }
+    }
     return args;
   }
 
@@ -550,6 +682,12 @@ namespace // *****************************************************************
                        bool forceNoParseErrorException)
   {
     const std::string animationName = "Animation FileReader";
+    const std::vector<std::string> validArgs = {};
+
+    bool argError = false;
+    const auto args = parseAnimationArgs(animationArgs, validArgs, validArgs, animationName,
+                                         argError, errormsg, forceNoParseErrorException);
+    if( argError ) return false;
 
     if (!animationData.size()) {
       parseError(animationName + ": Missing file name.", errormsg, forceNoParseErrorException);
