@@ -17,9 +17,15 @@
 #include <thread>
 #include <utility>
 
-// Linux only, TODO Windows alternative for isatty...
-#include <unistd.h>
-
+#ifdef __linux__
+  #include <unistd.h>
+#elif defined _WIN32
+  #include <windows.h>
+  #include <io.h>	
+  #include <stdio.h>
+  #define isatty _isatty
+  #define fileno _fileno
+#endif
 #include "moodycamel/concurrentqueue.h"
 
 #ifndef WITHOUT_HIDAPI
@@ -41,7 +47,6 @@ namespace {
 
 namespace {
   bool stdoutIsTty() {
-    // TODO Windows alternative...
     return isatty(fileno(stdout));
   }
 
@@ -134,8 +139,20 @@ struct dcled::Device::Impl
   }
 
   void terminalPosReset() {
-    if (stdout_is_tty)
+	if (stdout_is_tty) {
+#ifndef _WIN32
       std::cout << "\x1b[" << char(Screen::HEIGHT + 0x30) << "A";
+#else
+      HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+      CONSOLE_SCREEN_BUFFER_INFO screenBufferInfo;
+      if (GetConsoleScreenBufferInfo(hConsole, &screenBufferInfo)) {
+        COORD coord;
+        coord.X = 0;
+        coord.Y = screenBufferInfo.dwCursorPosition.Y - Screen::HEIGHT;
+        SetConsoleCursorPosition(hConsole, coord);
+      }
+#endif
+	}
     else
       std::cout << "\n";
   }

@@ -11,6 +11,7 @@
 #include <dcled-GitVersion.h>
 
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <cstring>
 #include <fstream>
@@ -203,7 +204,7 @@ namespace dcled { namespace cli // *********************************************
       {
         print() << dcled::version_string();
         if (std::strcmp( dcled::version_branch(), "master"))
-        { // Not a build from master, put out extra information:
+        { // Not a build from master branch, print out additional information:
           print() << "  - git-branch: " << dcled::version_branch();
           print() << "  - git-hash: " << dcled::version_fullhash();
         }
@@ -230,6 +231,7 @@ namespace dcled { namespace cli // *********************************************
       error() << "ValidationError: " << e.what();
       return State::ERROR;
     }
+
 
     if (!virtual_dev_arg && !HidApi::init()) {
       error() << "Error: hid_init() failed.";
@@ -262,6 +264,11 @@ namespace dcled { namespace cli // *********************************************
       }
       if (error_occured)
         return State::ERROR;
+    }
+    else
+    {
+      std::cout << parser;
+      return State::EXIT;
     }
 
     parsed_ = true;

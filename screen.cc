@@ -5,6 +5,7 @@
 #include "pixmap.h"
 #include "screen.h"
 
+#include <algorithm>
 #include <iostream>
 
 namespace {
@@ -27,9 +28,11 @@ void dcled::Screen::print(bool ttyColored) const
   for (uint8_t y = 0; y < Screen::HEIGHT; ++y) {
     std::cout << "|";
     for (uint8_t x = 0; x < Screen::WIDTH; ++x) {
+#ifndef _WIN32
       if (ttyColored)
         std::cout << (get(x,y) ? "\x1b[1;37;41m*\033[0m" : "\x1b[90;40m.\033[0m");
       else
+#endif
         std::cout << (get(x,y) ? "*" : ".");
     }
     std::cout << '|' << std::endl;

@@ -69,33 +69,35 @@ if(BUILD_DCLED_HIDAPI_LIBUSB OR BUILD_DCLED_HIDAPI_RAW)
 endif()
 
 if(BUILD_DCLED_HIDAPI_LIBUSB OR BUILD_DCLED_HIDAPI_RAW)
-  add_library(dcledcli STATIC EXCLUDE_FROM_ALL dcled-main.cc dcled-cli.cc dcled-cli.h args/args.hxx)
+  add_library(dcledcli STATIC EXCLUDE_FROM_ALL dcled-cli.cc dcled-cli.h args/args.hxx)
   target_include_directories(dcledcli PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
   add_version_info_custom_prefix(dcledcli dcled  "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 if(BUILD_DCLED_HIDAPI_LIBUSB)
-  add_executable(dcledc output.h)
+  add_executable(dcledc dcled-main.cc)
   target_link_libraries(dcledc dcledcli dcledlib hidapi-libusb)
 endif()
 
 # For Ubuntu/Debian systems `libudev-dev` pkg is required to build HIDAPI_RAW version.
 if(BUILD_DCLED_HIDAPI_RAW)
-  add_executable(dcledc-raw output.h)
+  add_executable(dcledc-raw dcled-main.cc)
   target_link_libraries(dcledc-raw dcledcli dcledlib hidapi-hidraw)
 endif()
 
+# Version without any hidapi/libusb dependencies - emulation on the console only
 if(BUILD_DCLED_WITHOUT_HIDAPI)
   add_library(dcledlib-nohidapi STATIC EXCLUDE_FROM_ALL ${dcledlib_SOURCES})
   target_include_directories(dcledlib-nohidapi PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-  target_compile_definitions(dcledlib-nohidapi PUBLIC WITHOUT_HIDAPI)
+  target_compile_definitions(dcledlib-nohidapi PUBLIC WITHOUT_HIDAPI PRIVATE $<$<CXX_COMPILER_ID:MSVC>:_CRT_SECURE_NO_WARNINGS>)
   target_link_libraries(dcledlib-nohidapi INTERFACE ${CMAKE_THREAD_LIBS_INIT})
-  add_library(dcledcli-nohidapi STATIC EXCLUDE_FROM_ALL dcled-main.cc dcled-cli.cc dcled-cli.h args/args.hxx)
+  add_library(dcledcli-nohidapi STATIC EXCLUDE_FROM_ALL dcled-cli.cc dcled-cli.h args/args.hxx)
   target_include_directories(dcledcli-nohidapi PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
   target_compile_definitions(dcledcli-nohidapi PUBLIC WITHOUT_HIDAPI)
   add_version_info_custom_prefix(dcledcli-nohidapi dcled  "${CMAKE_CURRENT_SOURCE_DIR}")
-  add_executable(dcledc-nohidapi output.h)
+  add_executable(dcledc-nohidapi dcled-main.cc)
   target_link_libraries(dcledc-nohidapi dcledcli-nohidapi dcledlib-nohidapi)
 endif()
 
+# Add target with non-source files for convenience when using IDEs like QtCreator and others
 add_custom_target(non-sources SOURCES README.md LICENSE 40-dcled.rules .travis.yml)

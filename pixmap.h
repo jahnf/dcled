@@ -32,8 +32,8 @@ namespace dcled
       return pixels_.at(y).at(x);
     }
 
-    uint32_t width() const { return pixels_.size() ? pixels_.front().size() : 0; }
-    uint32_t height() const { return pixels_.size(); }
+    uint32_t width() const { return pixels_.size() ? static_cast<uint32_t>(pixels_.front().size()) : 0; }
+    uint32_t height() const { return static_cast<uint32_t>(pixels_.size()); }
 
     void resize(uint32_t width, uint32_t height);
 

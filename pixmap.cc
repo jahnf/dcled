@@ -6,6 +6,8 @@
 #include "pixmap.h"
 #include "screen.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <cstring>
 #include <fstream>
@@ -64,16 +66,16 @@ dcled::PixMap dcled::PixMap::fromFile(const std::string& filename)
     return PixMap();
   }
   std::list<std::string> rows;
-  size_t width = 0;
-  size_t linecount = 0, height = 0;
+  uint32_t width = 0, height = 0;
+  size_t linecount = 0;
   auto pos = std::string::npos;
   for (std::string line; std::getline(infile, line); ++linecount)
   {
     // Skip empty lines and comment lines
     if (!line.size()) continue;
     if (line[0] == '#' || line[pos] == ';') continue;
-    width = std::max(width, line.size());
-    rows.emplace_back( std::move(line) );
+    width = std::max(width, static_cast<uint32_t>(line.size()));
+    rows.emplace_back(std::move(line));
     ++height;
   }
 
@@ -81,7 +83,7 @@ dcled::PixMap dcled::PixMap::fromFile(const std::string& filename)
   size_t y = 0;
   for (auto it = rows.cbegin(), end = rows.cend(); it != end; ++it, ++y) {
     for(size_t x = 0; x < it->size(); ++x ) {
-      pm.at(x, y) = (*it)[x];
+      pm.at(static_cast<uint32_t>(x), static_cast<uint32_t>(y)) = (*it)[x];
     }
   }
   return pm;

@@ -37,8 +37,8 @@ namespace dcled
   public:
     static constexpr uint16_t VENDOR_ID = 0x1d34;
     static constexpr uint16_t PRODUCT_ID = 0x0013;
-    static constexpr char EMULATED_DEV_PATH[] = { "/dev/stdout" };
-    static constexpr char INVALID_DEV_PATH[] = { "/dev/null" };
+    static constexpr char EMULATED_DEV_PATH[] =  "/dev/stdout";
+    static constexpr char INVALID_DEV_PATH[] = "/dev/null";
 
     /// Returns a list of all found dcled devices.
     static const std::list<DeviceInfo> list();

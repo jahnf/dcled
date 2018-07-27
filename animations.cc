@@ -89,7 +89,7 @@ namespace dcled {
       else {
         auto return_ms = time_left_ms_;
         time_left_ms_ = 0;
-        return return_ms;
+        return static_cast<uint32_t>(return_ms);
       }
     }
     return 500;
